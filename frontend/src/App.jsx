@@ -1,5 +1,6 @@
 import './App.css'
 import Header from './components/Header'
+import FirstCard from './components/FirstCard'
 
 function App() {
 
@@ -7,6 +8,7 @@ function App() {
   return (
    <div>
       <Header/>
+      <FirstCard/>
    </div>
   )
 }
