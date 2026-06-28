@@ -1,14 +1,37 @@
-import React, { useState } from 'react';
-import { Search, Users, MessageSquare, Bell, ChevronDown } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Search, Users, MessageSquare, Bell, ChevronDown, UserCircle2, MapPin, Settings2, HelpCircle, LogOut, Heart } from 'lucide-react';
 import logoImg from '../assets/logo-no-bg.jpg';
 
-export default function Header() {
-  const [activeTab, setActiveTab] = useState('Home');
+export default function Header({ page, setPage, setProfileView }) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const navItems = ['Home', 'Favorites', 'About Us'];
+  const navItems = [
+    { label: 'Home', value: 'home' },
+    { label: 'Favorites', value: 'favorites' },
+    { label: 'About Us', value: 'about' },
+  ];
+
+  const handleProfileAction = (view) => {
+    setPage('profile');
+    setProfileView(view);
+    setIsMenuOpen(false);
+  };
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('[data-profile-menu]')) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [isMenuOpen]);
 
   return (
-    <header className="w-full h-20 bg-white border-b border-gray-100 flex items-center justify-between px-6 shadow-sm">
+    <header className="relative z-50 w-full h-20 bg-white border-b border-gray-100 flex items-center justify-between px-6 shadow-sm">
       
       {/* LEFT: Branding & Logo */}
       <div className="flex items-center gap-3">
@@ -36,18 +59,18 @@ export default function Header() {
         {/* Navigation Links */}
         <nav className="flex items-center gap-2">
           {navItems.map((item) => {
-            const isActive = activeTab === item;
+            const isActive = page === item.value;
             return (
               <button
-                key={item}
-                onClick={() => setActiveTab(item)}
+                key={item.value}
+                onClick={() => setPage(item.value)}
                 className={`px-5 py-2 rounded-full font-medium text-sm transition-all duration-200 ${
                   isActive
                     ? 'bg-emerald-50 text-emerald-800 border border-emerald-400'
                     : 'text-emerald-900/80 hover:text-emerald-900 hover:bg-gray-50'
                 }`}
               >
-                {item}
+                {item.label}
               </button>
             );
           })}
@@ -74,7 +97,7 @@ export default function Header() {
         {/* Chat Button with Notification Badge */}
         <button className="w-10 h-10 rounded-full border border-emerald-600/20 flex items-center justify-center hover:bg-gray-50 transition-colors relative">
           <MessageSquare className="w-5 h-5 text-gray-400" />
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-[#34D399] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 border border-white">
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-white bg-[#34D399] px-1 text-[10px] font-bold text-white">
             2
           </span>
         </button>
@@ -82,22 +105,75 @@ export default function Header() {
         {/* Alerts Notification Button with Badge */}
         <button className="w-10 h-10 rounded-full border border-emerald-600/20 flex items-center justify-center hover:bg-gray-50 transition-colors relative">
           <Bell className="w-5 h-5 text-emerald-500" />
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-[#34D399] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 border border-white">
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-white bg-[#34D399] px-1 text-[10px] font-bold text-white">
             2
           </span>
         </button>
 
         {/* Profile Dropdown Wrapper */}
-        <div className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-full bg-emerald-50/20 border border-emerald-600/20 cursor-pointer hover:bg-emerald-50/40 transition-all ml-2">
-          {/* Avatar Base */}
-          <div className="w-8 h-8 rounded-full bg-[#0F5132] flex items-center justify-center text-white text-xs font-semibold uppercase tracking-wider">
-            SV
-          </div>
-          {/* Profile Name & Menu Trigger */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-semibold text-gray-900">Sophea</span>
-            <ChevronDown className="w-4 h-4 text-gray-500" />
-          </div>
+        <div className="relative z-[60] ml-2" data-profile-menu>
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen((prev) => !prev)}
+            className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-full bg-emerald-50/20 border border-emerald-600/20 cursor-pointer hover:bg-emerald-50/40 transition-all"
+          >
+            <div className="w-8 h-8 rounded-full bg-[#0F5132] flex items-center justify-center text-white text-xs font-semibold uppercase tracking-wider">
+              SV
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-semibold text-gray-900">Sophea</span>
+              <ChevronDown className={`w-4 h-4 text-gray-500 transition ${isMenuOpen ? 'rotate-180' : ''}`} />
+            </div>
+          </button>
+
+          {isMenuOpen && (
+            <div className="absolute right-0 z-[70] mt-3 w-72 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl">
+              <div className="rounded-2xl bg-emerald-50 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-800 text-sm font-semibold text-white">
+                    SV
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">Sophea Vann</p>
+                    <p className="text-sm text-gray-500">sophea.v@gmail.com</p>
+                    <span className="mt-1 inline-flex rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                      Free plan
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-2 space-y-1">
+                <button type="button" onClick={() => handleProfileAction('overview')} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-emerald-50">
+                  <UserCircle2 size={16} className="text-emerald-700" />
+                  <span>My Profile</span>
+                </button>
+                <button type="button" onClick={() => handleProfileAction('trips')} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-emerald-50">
+                  <MapPin size={16} className="text-emerald-700" />
+                  <span>My Trips</span>
+                </button>
+                <button type="button" onClick={() => handleProfileAction('saved')} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-emerald-50">
+                  <Heart size={16} className="text-emerald-700" />
+                  <span>Saved Places</span>
+                </button>
+                <button type="button" onClick={() => handleProfileAction('settings')} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-emerald-50">
+                  <Settings2 size={16} className="text-emerald-700" />
+                  <span>Settings</span>
+                </button>
+                <button type="button" className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-emerald-50">
+                  <HelpCircle size={16} className="text-emerald-700" />
+                  <span>Help & Support</span>
+                </button>
+              </div>
+
+              <div className="mt-2 border-t border-gray-200 pt-2">
+                <button type="button" className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-rose-600 transition hover:bg-rose-50">
+                  <LogOut size={16} />
+                  <span>Log out</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
