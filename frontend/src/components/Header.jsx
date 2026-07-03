@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Search, Users, MessageSquare, Bell, ChevronDown } from 'lucide-react';
 import logoImg from '../assets/logo-no-bg.jpg';
+import FriendsPopover from './FriendsPopover';
 
 export default function Header() {
   const [activeTab, setActiveTab] = useState('Home');
-
+  const [isFriendsOpen, setIsFriendsOpen] = useState(false);
   const navItems = ['Home', 'Favorites', 'About Us'];
 
   return (
@@ -67,7 +68,10 @@ export default function Header() {
       {/* RIGHT: System Utilities & Profile Dropdown */}
       <div className="flex items-center gap-3">
         {/* Friends/Groups Icon */}
-        <button className="w-10 h-10 rounded-full border border-emerald-600/20 flex items-center justify-center hover:bg-gray-50 transition-colors">
+        <button 
+          onClick={() => setIsFriendsOpen(!isFriendsOpen)}
+          className="w-10 h-10 rounded-full border border-emerald-600/20 flex items-center justify-center hover:bg-gray-50 transition-colors"
+        >
           <Users className="w-5 h-5 text-gray-800" />
         </button>
 
@@ -99,6 +103,10 @@ export default function Header() {
             <ChevronDown className="w-4 h-4 text-gray-500" />
           </div>
         </div>
+        <FriendsPopover 
+          isOpen={isFriendsOpen} 
+          onClose={() => setIsFriendsOpen(false)} 
+        />
       </div>
 
     </header>
