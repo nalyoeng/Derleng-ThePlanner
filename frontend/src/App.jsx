@@ -1,13 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 import Header from './components/Header'
 import FirstCard from './components/FirstCard'
 import DestinationCard from './components/DestinationCard'
 import DestinationModal from './components/destinationModel'
-import FavoritesPage from './features/FavoritePage'
-import AboutPage from './features/AboutPage'
-import ProfilePage from './features/ProfilePage'
-
+import FavoritesPage from './features/favorite'
+import AboutPage from './features/about'
+import ProfilePage from './features/profile'
+import AuthPage from './features/auth'
+import { supabase } from './lib/supabaseClient'
 const destinations = [
   {
     id: 1,
@@ -28,23 +29,52 @@ const destinations = [
 ];
 
 function App() {
+  const [user,setUser]= useState(null);
+  const [loading,setLoading]= useState(true);
   const [page, setPage] = useState('home'); // 'home' | 'favorites' | 'about' | 'profile'
   const [profileView, setProfileView] = useState('overview');
   const [favorites, setFavorites] = useState(new Set());
   const [activeDest, setActiveDest] = useState(null);
-
   const toggleFav = (id) =>
     setFavorites((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  const handleLogout = async () => {
+  await supabase.auth.signOut();
+  setUser(null);
+};
+  useEffect(() => {
+  let mounted = true;
 
+  supabase.auth.getSession().then(({ data }) => {
+    if (mounted) {
+      setUser(data.session?.user || null);
+      setLoading(false);
+    }
+  });
+
+  const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    setUser(session?.user || null);
+    setLoading(false);
+  });
+
+  return () => {
+    mounted = false;
+    listener.subscription.unsubscribe();
+  };
+}, []);
   const favoriteDestinations = destinations.filter((d) => favorites.has(d.id));
-
+  if(loading){
+    return <div>Loading...</div>;
+  }
+  if(!user) {
+    return <AuthPage/>
+  }
   return (
     <div>
-      <Header page={page} setPage={setPage} setProfileView={setProfileView} />
+      <Header page={page} setPage={setPage} setProfileView={setProfileView} onLogout={handleLogout} />
       {page === 'home' && (
         <>
           <FirstCard />
@@ -68,8 +98,7 @@ function App() {
 
       {page === 'about' && <AboutPage />}
 
-      {page === 'profile' && <ProfilePage activeTab={profileView} onTabChange={setProfileView} />}
-
+     {page === 'profile' && (<ProfilePage user={user} activeTab={profileView} onTabChange={setProfileView} onLogout={handleLogout} />)}
       {activeDest && (
         <DestinationModal
           dest={activeDest}

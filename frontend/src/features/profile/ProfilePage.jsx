@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { CalendarDays, CheckCircle2, Clock3, Compass, Edit3, Heart, HelpCircle, LogOut, MapPin, Plane, Settings2, UserCircle2 } from 'lucide-react';
-
+import {supabase} from '../../lib/supabaseClient';
 const tripItems = [
   {
     id: 1,
@@ -60,7 +60,19 @@ function TabButton({ active, label, value, onClick }) {
   );
 }
 
-export default function ProfilePage({ activeTab, onTabChange }) {
+const saveProfile = async (updates) => {
+  const { error } = await supabase.auth.updateUser({
+    data: updates,
+  });
+
+  if (error) {
+    console.log(error.message);
+    return { ok: false, message: error.message };
+  }
+  return { ok: true };
+};
+
+export default function ProfilePage({ user, activeTab, onTabChange }) {
   const stats = useMemo(
     () => [
       { value: '12', label: 'Trips planned' },
@@ -71,6 +83,31 @@ export default function ProfilePage({ activeTab, onTabChange }) {
     []
   );
 
+  // Controlled settings form, seeded from the real logged-in user
+  const [settingsForm, setSettingsForm] = useState({
+    full_name: user?.user_metadata?.full_name || '',
+    username: user?.user_metadata?.username || '',
+    email: user?.email || '',
+    phone: user?.user_metadata?.phone || '',
+  });
+  const [saveState, setSaveState] = useState('idle'); // idle | saving | saved | error
+
+  const updateField = (key) => (e) =>
+    setSettingsForm((prev) => ({ ...prev, [key]: e.target.value }));
+
+  const handleSaveChanges = async () => {
+    setSaveState('saving');
+    const result = await saveProfile({
+      full_name: settingsForm.full_name,
+      username: settingsForm.username,
+      phone: settingsForm.phone,
+    });
+    setSaveState(result.ok ? 'saved' : 'error');
+    if (result.ok) {
+      setTimeout(() => setSaveState('idle'), 2000);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f7f7f2] pb-12 text-gray-800">
       <div className="h-32 bg-gradient-to-r from-emerald-900 via-emerald-700 to-emerald-400" />
@@ -78,11 +115,19 @@ export default function ProfilePage({ activeTab, onTabChange }) {
         <div className="-mt-12 flex flex-col gap-6 rounded-[2rem] border border-emerald-100 bg-white p-6 shadow-sm sm:p-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
             <div className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-white bg-emerald-800 text-3xl font-semibold text-white">
-              SV
+              {user?.user_metadata?.full_name
+              ?.split(" ")
+              .map(n => n[0])
+              .join("")
+              .toUpperCase() || "U"}
             </div>
             <div>
-              <h1 className="text-3xl font-semibold text-gray-900">Sophea Vann</h1>
-              <p className="mt-1 text-sm text-gray-500">@sopheav · Joined March 2026</p>
+              <h1 className="text-3xl font-semibold text-gray-900">
+                {user?.user_metadata?.full_name || "User"}
+              </h1>
+              <p className="mt-1 text-sm text-gray-500">
+                @{user?.user_metadata?.username || "guest"}
+              </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">🧳 12 trips</span>
                 <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">🌍 6 provinces visited</span>
@@ -218,26 +263,52 @@ export default function ProfilePage({ activeTab, onTabChange }) {
             <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold text-gray-900">Profile information</h2>
-                <button type="button" className="rounded-full bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-700">
-                  Save changes
+                <button
+                  type="button"
+                  onClick={handleSaveChanges}
+                  disabled={saveState === 'saving'}
+                  className="rounded-full bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  {saveState === 'saving' ? 'Saving...' : saveState === 'saved' ? 'Saved ✓' : 'Save changes'}
                 </button>
               </div>
+              {saveState === 'error' && (
+                <p className="mt-2 text-sm text-rose-600">Something went wrong saving your changes. Try again.</p>
+              )}
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <label className="text-sm text-gray-600">
                   <span className="mb-2 block font-medium">Full name</span>
-                  <input className="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-emerald-500" defaultValue="Sophea Vann" />
+                  <input
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-emerald-500"
+                    value={settingsForm.full_name}
+                    onChange={updateField('full_name')}
+                  />
                 </label>
                 <label className="text-sm text-gray-600">
                   <span className="mb-2 block font-medium">Username</span>
-                  <input className="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-emerald-500" defaultValue="sopheav" />
+                  <input
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-emerald-500"
+                    value={settingsForm.username}
+                    onChange={updateField('username')}
+                  />
                 </label>
                 <label className="text-sm text-gray-600">
                   <span className="mb-2 block font-medium">Email</span>
-                  <input className="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-emerald-500" defaultValue="sophea.v@gmail.com" />
+                  <input
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none bg-gray-50 text-gray-400 cursor-not-allowed"
+                    value={settingsForm.email}
+                    readOnly
+                    title="Changing email requires re-verification — not supported here yet"
+                  />
                 </label>
                 <label className="text-sm text-gray-600">
                   <span className="mb-2 block font-medium">Phone</span>
-                  <input className="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-emerald-500" defaultValue="+855 12 345 678" />
+                  <input
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-emerald-500"
+                    value={settingsForm.phone}
+                    onChange={updateField('phone')}
+                    placeholder="+855 12 345 678"
+                  />
                 </label>
               </div>
             </div>

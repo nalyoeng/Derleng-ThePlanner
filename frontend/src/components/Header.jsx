@@ -2,7 +2,17 @@ import { useEffect, useState } from 'react';
 import { Search, Users, MessageSquare, Bell, ChevronDown, UserCircle2, MapPin, Settings2, HelpCircle, LogOut, Heart } from 'lucide-react';
 import logoImg from '../assets/logo-no-bg.jpg';
 
-export default function Header({ page, setPage, setProfileView }) {
+export default function Header({ page, setPage, setProfileView, user, onLogout }) {
+  const fullName = user?.user_metadata?.full_name || 'User';
+  const email = user?.email || '';
+  const initials = fullName
+    .trim()
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+  // to manage the state of the profile dropdown menu
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
@@ -11,15 +21,22 @@ export default function Header({ page, setPage, setProfileView }) {
     { label: 'About Us', value: 'about' },
   ];
 
+  // to handle profile menu actions and navigate to the profile page with the selected view
   const handleProfileAction = (view) => {
+    console.log(`Profile action: ${view}`);
     setPage('profile');
     setProfileView(view);
     setIsMenuOpen(false);
   };
 
-  useEffect(() => {
-    if (!isMenuOpen) return;
+  const handleLogoutClick = () => {
+    setIsMenuOpen(false);
+    onLogout?.();
+  };
 
+  useEffect(() => {
+    // to close the profile menu when clicking outside of it
+    if (!isMenuOpen) return;
     const handleClickOutside = (event) => {
       if (!event.target.closest('[data-profile-menu]')) {
         setIsMenuOpen(false);
@@ -118,10 +135,10 @@ export default function Header({ page, setPage, setProfileView }) {
             className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-full bg-emerald-50/20 border border-emerald-600/20 cursor-pointer hover:bg-emerald-50/40 transition-all"
           >
             <div className="w-8 h-8 rounded-full bg-[#0F5132] flex items-center justify-center text-white text-xs font-semibold uppercase tracking-wider">
-              SV
+              {initials}
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-semibold text-gray-900">Sophea</span>
+              <span className="text-sm font-semibold text-gray-900">{fullName.split(' ')[0]}</span>
               <ChevronDown className={`w-4 h-4 text-gray-500 transition ${isMenuOpen ? 'rotate-180' : ''}`} />
             </div>
           </button>
@@ -131,11 +148,11 @@ export default function Header({ page, setPage, setProfileView }) {
               <div className="rounded-2xl bg-emerald-50 p-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-800 text-sm font-semibold text-white">
-                    SV
+                    {initials}
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900">Sophea Vann</p>
-                    <p className="text-sm text-gray-500">sophea.v@gmail.com</p>
+                    <p className="font-semibold text-gray-900">{fullName}</p>
+                    <p className="text-sm text-gray-500">{email}</p>
                     <span className="mt-1 inline-flex rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
                       Free plan
                     </span>
@@ -167,7 +184,7 @@ export default function Header({ page, setPage, setProfileView }) {
               </div>
 
               <div className="mt-2 border-t border-gray-200 pt-2">
-                <button type="button" className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-rose-600 transition hover:bg-rose-50">
+                <button type="button" onClick={handleLogoutClick} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-rose-600 transition hover:bg-rose-50">
                   <LogOut size={16} />
                   <span>Log out</span>
                 </button>
