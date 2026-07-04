@@ -5,7 +5,7 @@ import Header from './components/Header'
 import FirstCard from './components/FirstCard'
 import ChatPage from './components/chatting/Chatpage'
 import DestinationCard from './components/DestinationCard'
-import DestinationModal from './components/destinationModel'
+import DestinationPage from './components/DestinationPage' // Named match updated
 
 // Admin
 import AdminLayout         from './features/admin/layout/AdminLayout';
@@ -15,6 +15,7 @@ import CreateAdmin         from './features/admin/CreateAdmin';
 import { Backup, Recover } from './features/admin/BackupRecover';
 import Report              from './features/admin/Report';
 
+// Global Data Array
 const destinations = [
   {
     id: 1,
@@ -25,7 +26,7 @@ const destinations = [
     reviews: 982,
     price: 37,
     img: "https://images.unsplash.com/photo-1564507592333-c60657eea523",
-    images: ["https://...1.jpg", "https://...2.jpg"],
+    images: ["https://images.unsplash.com/photo-1564507592333-c60657eea523", "https://images.unsplash.com/photo-1580993072224-b1f4139bdca0"],
     highlight: "Best sunrise in South Asia",
     description: "The world's largest religious monument...",
     tags: ["Temples", "Sunrise", "Heritage"],
@@ -33,10 +34,44 @@ const destinations = [
   },
 ];
 
-// Your friend's home page — kept exactly as is
-function Home() {
-  const [favorites, setFavorites] = useState(new Set());
+// Refactored Home View Panel using dynamic routing links
+function Home({ favorites, toggleFav }) {
   const [activeDest, setActiveDest] = useState(null);
+
+  // If a destination has been opened, render the page block natively
+  if (activeDest) {
+    return (
+      <DestinationPage 
+        dest={activeDest} 
+        onBack={() => setActiveDest(null)} 
+        fav={favorites.has(activeDest.id)}
+        onToggleFav={() => toggleFav(activeDest.id)}
+      />
+    );
+  }
+
+  return (
+    <div>
+      <Header />
+      <FirstCard />
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 px-6 py-4 bg-[#F9FAFB]">
+        {destinations.map((d) => (
+          <DestinationCard
+            key={d.id}
+            d={d}
+            fav={favorites.has(d.id)}
+            onToggleFav={() => toggleFav(d.id)}
+            onOpen={() => setActiveDest(d)} // 🌟 Set target item hook
+          />
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function App() {
+  // Shared state lifted up to pass down tracking variables natively across views
+  const [favorites, setFavorites] = useState(new Set());
 
   const toggleFav = (id) =>
     setFavorites((prev) => {
@@ -46,41 +81,29 @@ function Home() {
     });
 
   return (
-    <div>
-      <Header />
-      <FirstCard />
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 px-6 py-4">
-        {destinations.map((d) => (
-          <DestinationCard
-            key={d.id}
-            d={d}
-            fav={favorites.has(d.id)}
-            onToggleFav={() => toggleFav(d.id)}
-            onOpen={() => setActiveDest(d)}
-          />
-        ))}
-      </section>
-      {activeDest && (
-        <DestinationModal
-          dest={activeDest}
-          onClose={() => setActiveDest(null)}
-          fav={favorites.has(activeDest.id)}
-          onToggleFav={() => toggleFav(activeDest.id)}
-        />
-      )}
-    </div>
-  );
-}
-
-function App() {
-  return (
     <BrowserRouter>
       <Routes>
-        {/* Your friend's pages */}
-        <Route path="/" element={<Home />} />
+        {/* Gallery Interface */}
+        <Route 
+          path="/" 
+          element={<Home favorites={favorites} toggleFav={toggleFav} />} 
+        />
+        
+        {/* Standalone routed sub-page view layout */}
+        <Route 
+          path="/destination/:id" 
+          element={
+            <DestinationPage 
+              destinationsList={destinations} 
+              favorites={favorites} 
+              onToggleFav={toggleFav} 
+            />
+          } 
+        />
+        
         <Route path="/chat" element={<ChatPage/>} />
 
-        {/* Your admin pages */}
+        {/* Admin Section Layout Ecosystem */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard"    element={<AdminDashboard />} />
@@ -91,6 +114,7 @@ function App() {
           <Route path="report"       element={<Report />} />
         </Route>
 
+        {/* Fallback Catch */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
@@ -98,4 +122,3 @@ function App() {
 }
 
 export default App;
-
