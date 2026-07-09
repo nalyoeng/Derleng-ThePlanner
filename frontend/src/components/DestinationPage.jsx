@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom"; // 🌟 Added hooks for route params and history
 import {
   ArrowLeft, Star, DollarSign, Heart, Sunrise,
   MapPin, Check, ThumbsUp, BadgeCheck, MessageSquare
@@ -21,7 +22,11 @@ function Avatar({ initials, color, size = 32 }) {
   );
 }
 
-export default function DestinationPage({ dest, onBack, fav, onToggleFav }) {
+// 🌟 destinationsList is passed from App.jsx routing parameters
+export default function DestinationPage({ destinationsList, favorites, onToggleFav }) {
+  const { id } = useParams(); // 🌟 Grab the ID out of the address bar (/destination/1)
+  const navigate = useNavigate(); // 🌟 Handles moving back through router history
+
   const [idx, setIdx] = useState(0);
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
@@ -29,10 +34,17 @@ export default function DestinationPage({ dest, onBack, fav, onToggleFav }) {
   const [posted, setPosted] = useState(false);
   const [sort, setSort] = useState("Most recent");
 
+  // Find the exact matching destination based on the path parameter
+  const dest = destinationsList?.find((item) => item.id === Number(id));
+  const isFavorite = favorites?.has(dest?.id);
+
   if (!dest) {
     return (
-      <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center text-[#6B7280]">
-        No destination data provided.
+      <div className="min-h-screen bg-[#F9FAFB] flex flex-col items-center justify-center text-[#6B7280] gap-4">
+        <p>No destination data found.</p>
+        <button onClick={() => navigate("/")} className="text-sm font-semibold text-[#0F5132] underline">
+          Back to Explore
+        </button>
       </div>
     );
   }
@@ -45,25 +57,25 @@ export default function DestinationPage({ dest, onBack, fav, onToggleFav }) {
       {/* Top Navbar Header */}
       <header className="sticky top-0 z-40 w-full bg-white border-b border-gray-100 px-4 py-4 md:px-8 flex items-center justify-between shadow-sm">
         <button 
-          onClick={onBack} 
+          onClick={() => navigate(-1)} // 🌟 Navigates securely back to the previous screen
           className="flex items-center gap-2 text-sm font-semibold text-[#6B7280] hover:text-[#0F5132] transition-colors group"
         >
           <ArrowLeft size={16} className="transform group-hover:-translate-x-0.5 transition-transform" />
           <span>Back to Explore</span>
         </button>
-        <h1 className="hidden md:block font-['Playfair_Display'] font-bold text-lg text-[#111827]">
+        <h1 className="hidden md:block font-serif font-bold text-lg text-[#111827]">
           {dest.name}
         </h1>
         <button
-          onClick={onToggleFav}
+          onClick={() => onToggleFav(dest.id)} // 🌟 Updated to pass the matching ID up
           className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 border ${
-            fav 
+            isFavorite 
               ? 'bg-[#F0FDF4] text-[#0F5132] border-[#34D399]' 
               : 'bg-white text-[#111827] border-gray-200 hover:border-gray-300'
           }`}
         >
-          <Heart size={14} fill={fav ? "#0F5132" : "none"} color={fav ? "#0F5132" : "#111827"} />
-          <span>{fav ? "Saved" : "Save to Trips"}</span>
+          <Heart size={14} fill={isFavorite ? "#0F5132" : "none"} color={isFavorite ? "#0F5132" : "#111827"} />
+          <span>{isFavorite ? "Saved" : "Save to Trips"}</span>
         </button>
       </header>
 
@@ -84,7 +96,7 @@ export default function DestinationPage({ dest, onBack, fav, onToggleFav }) {
                 <span className="inline-block text-xs uppercase tracking-wider font-bold text-[#34D399] mb-1">
                   {dest.category} · {dest.location}
                 </span>
-                <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white font-['Playfair_Display']">
+                <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white font-serif">
                   {dest.name}
                 </h2>
               </div>
@@ -225,7 +237,7 @@ export default function DestinationPage({ dest, onBack, fav, onToggleFav }) {
             <span className="block text-[10px] font-bold tracking-wider text-[#0F5132] uppercase mb-1">
               Share Your Experience
             </span>
-            <h3 className="text-lg font-bold text-[#111827] mb-4 font-['Playfair_Display']">
+            <h3 className="text-lg font-bold text-[#111827] mb-4 font-serif">
               Write a review
             </h3>
 

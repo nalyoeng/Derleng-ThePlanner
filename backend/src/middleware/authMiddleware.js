@@ -1,37 +1,34 @@
-// backend/src/middleware/authMiddleware.js
-import supabase from '../config/supabase.js';
+// src/middleware/authMiddleware.js
+import 'dotenv/config';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 export const protect = async (req, res, next) => {
-  let token;
-
-  // Check for the token inside the Authorization header (e.g., "Bearer <token>")
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
-  }
-
-  // 🌟 DEV MODE FALLBACK: If no token is provided while testing offline
-  if (!token || token === 'mock-token') {
-    console.warn("🔑 Auth Middleware: Using offline mock user context.");
-    req.user = {
-      id: 'mock-user-123',
-      email: 'student@derleng.edu.kh',
-      role: 'admin' // Toggle to 'user' to test role restrictions later!
-    };
-    return next();
-  }
-
   try {
-    // Verify token with Supabase client instance
+    // 1. Check if the Authorization header exists and starts with 'Bearer '
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Not authorized, token missing' });
+    }
+
+    // 2. Extract the actual JWT token string
+    const token = authHeader.split(' ')[1];
+
+    // 3. Ask Supabase to verify this token
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
-      return res.status(401).json({ error: 'Not authorized, token validation failed' });
+      return res.status(401).json({ success: false, message: 'Not authorized, invalid token' });
     }
 
-    // Attach real user data to the request payload
+    // 4. Attach the verified user object to the request so controllers can use it
     req.user = user;
+    
+    // Move on to the next function (the controller)
     next();
-  } catch (err) {
-    res.status(401).json({ error: 'Authentication engine exception occurred' });
+  } catch (error) {
+    console.error('Auth middleware error:', error.message);
+    return res.status(401).json({ success: false, message: 'Authentication process failed' });
   }
 };

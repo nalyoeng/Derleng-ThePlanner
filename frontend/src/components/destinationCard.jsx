@@ -1,11 +1,13 @@
+import { Link } from 'react-router-dom';
 import React from 'react';
 import { Heart, Star, MapPin } from 'lucide-react';
 
-export default function DestinationCard({ d, fav, onToggleFav, onOpen }) {
+export default function DestinationCard({ d, fav, onToggleFav }) {
   return (
-    <div
-      onClick={onOpen} // 🌟 Natively triggers opening the specific view/modal passing data up
-      className="group rounded-3xl overflow-hidden bg-white border border-gray-100 flex flex-col cursor-pointer hover:shadow-xl hover:border-gray-200 transition-all duration-300 transform hover:-translate-y-1"
+    // 🌟 1. Turned the outer container into a Link pointing directly to the destination path
+    <Link
+      to={`/destination/${d.id}`}
+      className="group rounded-3xl overflow-hidden bg-white border border-[#E1DDD4] flex flex-col cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 block text-left decoration-none"
     >
       {/* Image Header Section */}
       <div className="relative h-48 sm:h-56 overflow-hidden bg-gray-900">
@@ -27,7 +29,9 @@ export default function DestinationCard({ d, fav, onToggleFav, onOpen }) {
         <button
           type="button"
           onClick={(e) => { 
-            e.stopPropagation(); // 🌟 Prevents triggering onOpen layout logic when just saving
+            // 🌟 2. e.preventDefault() and e.stopPropagation() stop the click from triggering the main link redirect!
+            e.preventDefault(); 
+            e.stopPropagation(); 
             onToggleFav(); 
           }}
           className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center shadow-sm hover:scale-110 active:scale-95 transition-all"
@@ -45,7 +49,7 @@ export default function DestinationCard({ d, fav, onToggleFav, onOpen }) {
       <div className="p-5 flex flex-col gap-4">
         <div>
           <div className="flex items-start justify-between gap-2 mb-1.5">
-            <h3 className="font-bold text-lg text-[#111827] font-['Playfair_Display'] leading-tight truncate">
+            <h3 className="font-bold text-lg text-[#111827] font-serif leading-tight truncate">
               {d.name}
             </h3>
             <span className="flex items-center gap-1 text-sm font-bold text-[#111827] bg-[#F9FAFB] border border-gray-100 px-2 py-0.5 rounded-md shrink-0">
@@ -72,6 +76,6 @@ export default function DestinationCard({ d, fav, onToggleFav, onOpen }) {
           </span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
