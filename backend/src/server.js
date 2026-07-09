@@ -3,11 +3,12 @@ import express from 'express';
 import cors from 'cors';
 import 'dotenv/config'; // Automatically loads your .env variables
 
-// Import Routes (🌟 CRITICAL: In Node ESM, you MUST include the '.js' extension!)
+// Import Routes
 import pollRoutes from './routes/pollRoutes.js';
 import tripRoutes from './routes/tripRoutes.js';
 // import adminRoutes from './routes/adminRoutes.js';
 import friendRoutes from './routes/friendRoutes.js';
+import followRoutes from './routes/followRoutes.js'; 
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -26,7 +27,8 @@ app.use('/api/polls', pollRoutes);
 app.use('/api/trips', tripRoutes);
 // app.use('/api/admin', adminRoutes);
 app.use('/api/friends', friendRoutes);
+app.use('/api/follow', followRoutes);
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server spinning on: http://localhost:${PORT}`);
+  console.log(`Server spinning on: http://localhost:${PORT}`);
 });

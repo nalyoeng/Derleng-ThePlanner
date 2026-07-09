@@ -12,7 +12,7 @@ import {
   LogOut,
   Heart
 } from 'lucide-react';
-
+import { Link } from 'react-router-dom';
 import logoImg from '../assets/logo-no-bg.jpg';
 import FriendsPopover from './FriendsPopover';
 
@@ -30,6 +30,7 @@ export default function Header({ user, onLogout }) {
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFriendsOpen, setIsFriendsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('Home'); // Tracks current page tab styling
 
   const handleLogoutClick = () => {
     setIsMenuOpen(false);
@@ -50,98 +51,154 @@ export default function Header({ user, onLogout }) {
   }, [isMenuOpen]);
 
   return (
-    <header className="relative z-50 w-full h-20 bg-white border-b border-gray-100 flex items-center justify-between px-6 shadow-sm">
+    <header className="relative z-50 w-full h-20 bg-[#FBFBFA]/90 backdrop-blur-md border-b border-[#EBE8E2] flex items-center justify-between px-8 shadow-sm">
 
-      {/* LEFT */}
-      <div className="flex items-center gap-3">
-        <img src={logoImg} alt="logo" className="w-30 h-20 object-contain rounded-2xl" />
-        <span className="font-serif text-black text-xl font-bold tracking-wider">
+      {/* LEFT: Branding Section */}
+      <div className="flex items-center gap-4">
+        <div className="p-1 bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center justify-center">
+          <img src={logoImg} alt="logo" className="w-14 h-11 object-contain rounded-xl" />
+        </div>
+        <span className="font-serif text-[#9A814E] text-xl font-bold tracking-widest uppercase">
           DER LENG
         </span>
       </div>
 
-      {/* CENTER */}
-      <div className="flex items-center gap-6 flex-1 justify-center max-w-3xl">
-        <div className="relative flex-1 max-w-md">
-          <input
-            type="text"
-            placeholder="Search destinations..."
-            className="w-full h-11 pl-5 pr-11 rounded-full bg-emerald-50/30 border border-emerald-600/30 text-sm"
-          />
-          <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4" />
-        </div>
-      </div>
+      {/* CENTER: Navigation Links + Main Search Input Bar */}
+<div className="flex items-center gap-8 flex-1 justify-center max-w-4xl px-4">
+  
+  {/* Navigation Tabs Links */}
+  <nav className="flex items-center gap-1.5 bg-[#F1EFEA] p-1 rounded-full border border-[#E3DFD5]">
+    
+    <Link
+      to="/"
+      className={`px-5 py-2 text-sm font-medium tracking-wide rounded-full transition-all duration-200 ${
+        window.location.pathname === '/'
+          ? 'bg-[#D2EBE1] text-[#1E4620] shadow-sm font-semibold'
+          : 'text-gray-600 hover:text-black hover:bg-black/5'
+      }`}
+    >
+      Home
+    </Link>
 
-      {/* RIGHT */}
-      <div className="flex items-center gap-3">
+    <Link
+      to="/favorites"
+      className={`px-5 py-2 text-sm font-medium tracking-wide rounded-full transition-all duration-200 ${
+        window.location.pathname === '/favorites'
+          ? 'bg-[#D2EBE1] text-[#1E4620] shadow-sm font-semibold'
+          : 'text-gray-600 hover:text-black hover:bg-black/5'
+      }`}
+    >
+      Favorites
+    </Link>
 
+    <Link
+      to="/about"
+      className={`px-5 py-2 text-sm font-medium tracking-wide rounded-full transition-all duration-200 ${
+        window.location.pathname === '/about'
+          ? 'bg-[#D2EBE1] text-[#1E4620] shadow-sm font-semibold'
+          : 'text-gray-600 hover:text-black hover:bg-black/5'
+      }`}
+    >
+      About Us
+    </Link>
+
+  </nav>
+
+  {/* Global Search Bar field box */}
+  <div className="relative flex-1 max-w-md">
+    <input
+      type="text"
+      placeholder="Search destinations, regions..."
+      className="w-full h-11 pl-5 pr-12 rounded-full bg-[#F3F1EC] border border-[#E1DDD4] text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-emerald-600/40 focus:bg-white transition-all"
+    />
+    <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+  </div>
+</div>
+
+      {/* RIGHT: System Interactive Utility Buttons & Actions */}
+      <div className="flex items-center gap-3.5">
+
+        {/* Network Toggle Button (Kept as a button since it opens a popover) */}
         <button
           onClick={() => setIsFriendsOpen(!isFriendsOpen)}
-          className="w-10 h-10 rounded-full border flex items-center justify-center"
+          className={`w-11 h-11 rounded-full border flex items-center justify-center transition-all duration-200 ${
+            isFriendsOpen 
+              ? 'bg-[#D2EBE1] border-[#B7DFCE] text-[#1E4620]' 
+              : 'bg-white border-[#E1DDD4] text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+          }`}
         >
-          <Users className="w-5 h-5" />
+          <Users className="w-5 h-5 stroke-[2]" />
         </button>
 
-        <button className="w-10 h-10 rounded-full border flex items-center justify-center relative">
-          <MessageSquare className="w-5 h-5" />
-          <span className="absolute -top-1 -right-1 bg-green-400 text-white text-[10px] px-1 rounded-full">
+        {/* Chat Page Link */}
+        <Link 
+          to="/chat" // 🌟 Points to your chat route path
+          className="w-11 h-11 rounded-full bg-white border border-[#E1DDD4] flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all relative"
+        >
+          <MessageSquare className="w-5 h-5 stroke-[2]" />
+          <span className="absolute -top-1 -right-1 bg-[#42C196] border-2 border-white text-white text-[10px] font-bold h-5 w-5 flex items-center justify-center rounded-full shadow-sm animate-pulse">
             2
           </span>
-        </button>
+        </Link>
 
-        <button className="w-10 h-10 rounded-full border flex items-center justify-center relative">
-          <Bell className="w-5 h-5 text-green-500" />
-        </button>
+        {/* Notifications Page Link */}
+        <Link 
+          to="/notifications" // 🌟 Points to your notifications route path
+          className="w-11 h-11 rounded-full bg-white border border-[#E1DDD4] flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all relative"
+        >
+          <Bell className="w-5 h-5 stroke-[2]" />
+          <span className="absolute -top-0.5 -right-0.5 bg-[#42C196] border-2 border-white w-3 h-3 rounded-full shadow-sm" />
+        </Link>
 
-        {/* PROFILE */}
-        <div className="relative" data-profile-menu>
+        {/* PROFILE DROP-DOWN ANCHOR */}
+        <div className="relative ml-1" data-profile-menu>
           <button
             onClick={() => setIsMenuOpen((p) => !p)}
-            className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50/20 border"
+            className="flex items-center gap-2.5 pl-3 pr-4 py-1.5 rounded-full bg-[#EFECE6] border border-[#E1DDD4] hover:border-gray-400/60 transition-all shadow-sm"
           >
-            <div className="w-8 h-8 rounded-full bg-green-900 text-white flex items-center justify-center text-xs">
+            <div className="w-8 h-8 rounded-full bg-[#274E37] text-white flex items-center justify-center text-xs font-bold tracking-wider shadow-inner">
               {initials}
             </div>
-            <ChevronDown className="w-4 h-4" />
+            <span className="text-gray-800 font-medium text-sm hidden sm:inline-block tracking-wide">
+              {fullName}
+            </span>
+            <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
           </button>
 
+          {/* User Settings Dropdown Window Menu */}
           {isMenuOpen && (
-            <div className="absolute right-0 mt-3 w-72 bg-white border rounded-2xl shadow-xl p-2">
-
-              <div className="p-4 bg-emerald-50 rounded-2xl">
-                <p className="font-semibold">{fullName}</p>
-                <p className="text-sm text-gray-500">{email}</p>
+            <div className="absolute right-0 mt-3 w-72 bg-white border border-[#E1DDD4] rounded-2xl shadow-xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              
+              <div className="p-3.5 bg-[#F6F4F0] rounded-xl border border-gray-100">
+                <p className="font-semibold text-gray-900 text-sm">{fullName}</p>
+                <p className="text-xs text-gray-500 truncate mt-0.5">{email}</p>
               </div>
 
-              <div className="mt-2 space-y-1">
-
-                <button className="flex w-full items-center gap-2 px-3 py-2 hover:bg-emerald-50 rounded-xl">
-                  <UserCircle2 size={16} /> My Profile
-                </button>
-
-                <button className="flex w-full items-center gap-2 px-3 py-2 hover:bg-emerald-50 rounded-xl">
-                  <MapPin size={16} /> My Trips
-                </button>
-
-                <button className="flex w-full items-center gap-2 px-3 py-2 hover:bg-emerald-50 rounded-xl">
-                  <Heart size={16} /> Saved Places
-                </button>
-
-                <button className="flex w-full items-center gap-2 px-3 py-2 hover:bg-emerald-50 rounded-xl">
-                  <Settings2 size={16} /> Settings
-                </button>
-
-                <button className="flex w-full items-center gap-2 px-3 py-2 hover:bg-emerald-50 rounded-xl">
-                  <HelpCircle size={16} /> Help
-                </button>
+              <div className="mt-2 space-y-0.5">
+                {/* Linked Profile Pages */}
+                <Link to="/profile" className="flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#F6F4F0] rounded-xl transition-colors">
+                  <UserCircle2 size={16} className="text-gray-400" /> My Profile
+                </Link>
+                <Link to="/trips" className="flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#F6F4F0] rounded-xl transition-colors">
+                  <MapPin size={16} className="text-gray-400" /> My Trips
+                </Link>
+                <Link to="/saved" className="flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#F6F4F0] rounded-xl transition-colors">
+                  <Heart size={16} className="text-gray-400" /> Saved Places
+                </Link>
+                <Link to="/settings" className="flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#F6F4F0] rounded-xl transition-colors">
+                  <Settings2 size={16} className="text-gray-400" /> Settings
+                </Link>
+                <Link to="/help" className="flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#F6F4F0] rounded-xl transition-colors">
+                  <HelpCircle size={16} className="text-gray-400" /> Help Support
+                </Link>
               </div>
 
-              <div className="border-t mt-2 pt-2">
+              <div className="border-t border-gray-100 mt-1.5 pt-1.5">
                 <button
                   onClick={handleLogoutClick}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-red-500 hover:bg-red-50 rounded-xl"
+                  className="flex w-full items-center gap-3 px-3 py-2 text-sm text-red-500 hover:bg-red-50/60 rounded-xl transition-colors font-medium"
                 >
-                  <LogOut size={16} /> Logout
+                  <LogOut size={16} /> Logout Account
                 </button>
               </div>
 
@@ -149,6 +206,7 @@ export default function Header({ user, onLogout }) {
           )}
         </div>
 
+        {/* Popover Element Container */}
         <FriendsPopover
           isOpen={isFriendsOpen}
           onClose={() => setIsFriendsOpen(false)}

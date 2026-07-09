@@ -19,7 +19,7 @@ import CreateAdmin from './features/admin/CreateAdmin'
 import { Backup, Recover } from './features/admin/BackupRecover'
 import Report from './features/admin/Report'
 
-// (Make sure these exist)
+// Components
 import DestinationPage from './components/DestinationPage'
 import ChatPage from './components/chatting/Chatpage'
 
@@ -86,7 +86,7 @@ function App() {
 
   const favoriteDestinations = destinations.filter((d) => favorites.has(d.id))
 
-  if (loading) return <div>Loading...</div>
+  if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>
 
   if (!user) return <AuthPage />
 
@@ -99,7 +99,8 @@ function App() {
           path="/"
           element={
             <div>
-              <Header onLogout={handleLogout} />
+              {/* 🌟 FIXED: Passed the authenticated user profile object */}
+              <Header user={user} onLogout={handleLogout} />
               <FirstCard />
 
               <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 px-6 py-4">
@@ -120,24 +121,38 @@ function App() {
         <Route
           path="/favorites"
           element={
-            <FavoritesPage
-              favorites={favoriteDestinations}
-              onRemove={toggleFav}
-            />
+            <div>
+              <Header user={user} onLogout={handleLogout} />
+              <FavoritesPage
+                favorites={favoriteDestinations}
+                onRemove={toggleFav}
+              />
+            </div>
           }
         />
 
         {/* About */}
-        <Route path="/about" element={<AboutPage />} />
+        <Route 
+          path="/about" 
+          element={
+            <div>
+              <Header user={user} onLogout={handleLogout} />
+              <AboutPage />
+            </div>
+          } 
+        />
 
         {/* Profile */}
         <Route
           path="/profile"
           element={
-            <ProfilePage
-              user={user}
-              onLogout={handleLogout}
-            />
+            <div>
+              <Header user={user} onLogout={handleLogout} />
+              <ProfilePage
+                user={user}
+                onLogout={handleLogout}
+              />
+            </div>
           }
         />
 
@@ -145,18 +160,29 @@ function App() {
         <Route
           path="/destination/:id"
           element={
-            <DestinationPage
-              destinationsList={destinations}
-              favorites={favorites}
-              onToggleFav={toggleFav}
-            />
+            <div>
+              <Header user={user} onLogout={handleLogout} />
+              <DestinationPage
+                destinationsList={destinations}
+                favorites={favorites}
+                onToggleFav={toggleFav}
+              />
+            </div>
           }
         />
 
         {/* Chat */}
-        <Route path="/chat" element={<ChatPage />} />
+        <Route 
+          path="/chat" 
+          element={
+            <div>
+              <Header user={user} onLogout={handleLogout} />
+              <ChatPage />
+            </div>
+          } 
+        />
 
-        {/* Admin */}
+        {/* Admin Layout and sub-routes (Header isn't loaded here intentionally) */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
