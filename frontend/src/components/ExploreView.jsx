@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import DestinationCard from './DestinationCard';
 import DestinationPage from './DestinationPage';
-
 export default function ExploreView({ destinations }) {
   const [selectedDest, setSelectedDest] = useState(null);
   const [favorites, setFavorites] = useState({});
