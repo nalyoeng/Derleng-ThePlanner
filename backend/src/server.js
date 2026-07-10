@@ -9,6 +9,7 @@ import tripRoutes from './routes/tripRoutes.js';
 // import adminRoutes from './routes/adminRoutes.js';
 import friendRoutes from './routes/friendRoutes.js';
 import followRoutes from './routes/followRoutes.js'; 
+import groupRoutes from './routes/groupRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -28,7 +29,9 @@ app.use('/api/trips', tripRoutes);
 // app.use('/api/admin', adminRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/follow', followRoutes);
+// POST /api/groups/invite
 
+app.use('/api/groups', groupRoutes);
 app.listen(PORT, () => {
   console.log(`Server spinning on: http://localhost:${PORT}`);
 });

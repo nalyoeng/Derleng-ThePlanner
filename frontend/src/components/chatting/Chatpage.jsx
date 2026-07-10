@@ -31,6 +31,9 @@ export default function Chatpage() {
   const [isDayModalOpen, setIsDayModalOpen] = useState(false);
   const [currentEditingDay, setCurrentEditingDay] = useState(null); 
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
+  const [allProfiles, setAllProfiles] = useState([]);
+  const [userFollowsList, setUserFollowsList] = useState([]);
+  const [groupMembersTable, setGroupMembersTable] = useState([]);
 
   const activeGroupMessages = messages.filter(msg => 
     String(msg.groupId) === String(activeGroup?.id)
@@ -40,86 +43,147 @@ export default function Chatpage() {
     setViewMode('chat');
   };
 
+  // Helper function to dynamically generate initials in the UI
+  const makeInitials = (name) => {
+    if (!name) return '??';
+    return name.trim().split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
   // --- 1. FETCH PROFILE ON MOUNT ---
   useEffect(() => {
     const getLoggedInUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('username, full_name, initials')
-          .eq('id', user.id)
-          .single();
-          
-        if (profile) {
-          setCurrentUserProfile(profile);
-        }
+        setCurrentUserProfile({
+          id: user.id,
+          full_name: user.user_metadata?.full_name || user.email.split('@')[0]
+        });
       }
     };
     getLoggedInUser();
   }, []);
 
-  // --- 2. FETCH GROUPS ON MOUNT (FIXED INIFINITE LOOP BY REMOVING activeGroup DEPENDENCY) ---
+  // --- 2. FETCH GROUPS ON MOUNT ---
   useEffect(() => {
     const fetchGroups = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
-        .from('groups')
-        .select('*')
-        .order('id', { ascending: true });
+        .from('group_members')
+        .select(`
+          role,
+          groups (
+            id,
+            name,
+            icon,
+            created_at,
+            group_members(count)
+          )
+        `)
+        .eq('user_id', user.id);
 
       if (!error && data) {
-        setGroups(data);
-        if (data.length > 0 && !activeGroup) {
-          setActiveGroup(data[0]);
-        }
+        const userJoinedGroups = data
+          .filter(m => m.groups !== null)
+          .map(m => ({
+            id: m.groups.id,
+            name: m.groups.name,
+            icon: m.groups.icon,
+            created_at: m.groups.created_at,
+            role: m.role,
+            member_count: m.groups.group_members?.[0]?.count || 1 
+          }));
+        
+        setGroups(userJoinedGroups);
       } else if (error) {
-        console.error("Error loading workspace groups:", error);
+        console.error("Error loading user-specific workspace groups:", error);
       }
     };
 
     fetchGroups();
-  }, []); // 👈 Kept empty so it only executes once on app load
+  }, []); 
 
   // --- 3. FETCH MESSAGES DATA ON GROUP OR PROFILE READY ---
-  useEffect(() => {
-    if (!activeGroup?.id) return;
+  // --- 3. FETCH MESSAGES DATA ON GROUP OR PROFILE READY ---
+useEffect(() => {
+  if (!activeGroup?.id) return;
 
-    const fetchMessages = async () => {
-      const { data, error } = await supabase
-        .from('messages')
-        .select(`
-          *,
-          poll_options ( id, option_text, votes )
-        `)
-        .eq('group_id', activeGroup.id)
-        .order('created_at', { ascending: true });
-      
-      if (!error && data) {
-        const formattedMessages = data.map(msg => ({
-          id: msg.id,
-          groupId: msg.group_id,
-          text: msg.text,
-          sender: msg.sender,
-          initials: msg.initials,
-          time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isMe: String(msg.sender).trim().toLowerCase() === 'you' || 
-      (currentUserProfile && String(msg.sender).trim() === String(currentUserProfile.full_name).trim()),
-          type: msg.type,
-          pollData: msg.type === 'poll' ? {
-            question: msg.text,
-            options: msg.poll_options.map(opt => ({
-              id: opt.id,
-              text: opt.option_text,
-              votes: opt.votes || []
-            }))
-          } : null
-        }));
-        setMessages(formattedMessages);
-      }
-    };
+  const loadModalData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-    fetchMessages();
-  }, [activeGroup?.id, currentUserProfile]); // Added profile tracking to evaluate alignment cleanly
+    // A. Fetch all users/profiles
+    const { data: profiles } = await supabase.from('profiles').select('id, full_name');
+    if (profiles) setAllProfiles(profiles);
+
+    // B. Fetch everyone currently belonging to the active group
+    const { data: members } = await supabase
+      .from('group_members')
+      .select('id, group_id, user_id, role')
+      .eq('group_id', activeGroup.id);
+    if (members) setGroupMembersTable(members);
+
+    // C. 🌟 FIX: Fetch only MUTUAL friends
+    // Step 1: Get everyone I follow
+    const { data: myFollowing } = await supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', user.id);
+
+    // Step 2: Get everyone who follows me
+    const { data: myFollowers } = await supabase
+      .from('follows')
+      .select('follower_id')
+      .eq('following_id', user.id);
+
+    if (myFollowing && myFollowers) {
+      // Get array of IDs from both sides
+      const followingIds = myFollowing.map(f => f.following_id);
+      const followerIds = myFollowers.map(f => f.follower_id);
+
+      // Filter to keep only the mutual ones (IDs that exist in BOTH lists)
+      const mutualIds = followingIds.filter(id => followerIds.includes(id));
+
+      // Map mutual IDs to their profile names
+      const resolvedFriends = mutualIds.map(friendId => {
+        const profileMatch = profiles?.find(p => p.id === friendId);
+        const name = profileMatch?.full_name || `User (${friendId.slice(0,4)}...)`;
+        return {
+          id: friendId,
+          name: name,
+          initials: name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
+          avatarBg: 'bg-emerald-100 text-emerald-800'
+        };
+      });
+
+      setUserFollowsList(resolvedFriends);
+    }
+
+    // D. Fetch historical messages
+    const { data: oldMessages, error: msgError } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('group_id', activeGroup.id)
+      .order('created_at', { ascending: true });
+
+    if (!msgError && oldMessages) {
+      const formattedOld = oldMessages.map(msg => ({
+        id: msg.id,
+        groupId: msg.group_id,
+        text: msg.text,
+        sender: msg.sender_id === user.id ? 'You' : 'Classmate',
+        initials: msg.sender_id === user.id ? 'You' : 'CM',
+        time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isMe: msg.sender_id === user.id,
+        type: msg.type
+      }));
+      setMessages(formattedOld); 
+    }
+  };
+
+  loadModalData();
+}, [activeGroup?.id, currentUserProfile]);
 
   // --- 4. LIVE REAL-TIME POSTGRES SYNC CHANNEL ---
   useEffect(() => {
@@ -137,70 +201,26 @@ export default function Chatpage() {
           table: 'messages',
           filter: `group_id=eq.${activeGroup.id}`
         }, 
-        async (payload) => {
-          if (payload.new.type === 'poll') {
-            const { data } = await supabase
-              .from('messages')
-              .select('*, poll_options(*)')
-              .eq('id', payload.new.id)
-              .single();
-            
-            if (data) {
-              const freshPoll = {
-                id: data.id,
-                groupId: data.group_id,
-                text: data.text,
-                sender: data.sender,
-                initials: data.initials,
-                time: 'Just now',
-                isMe: String(payload.new.sender).trim().toLowerCase() === 'you' || 
-      (currentUserProfile && String(payload.new.sender).trim() === String(currentUserProfile.full_name).trim()),
-                type: 'poll',
-                pollData: {
-                  question: data.text,
-                  options: data.poll_options.map(o => ({ id: o.id, text: o.option_text, votes: o.votes || [] }))
-                }
-              };
-              setMessages(prev => [...prev.filter(m => m.id !== freshPoll.id), freshPoll]);
-            }
-          } else {
-            const freshMsg = {
-              id: payload.new.id,
-              groupId: payload.new.group_id,
-              text: payload.new.text,
-              sender: payload.new.sender,
-              initials: payload.new.initials,
-              time: 'Just now',
-              // 🌟 FIXED REAL-TIME STREAM LAYOUT COLOR:
-              isMe: currentUserProfile ? String(payload.new.sender).trim() === String(currentUserProfile.full_name).trim() : false,
-              type: 'text'
-            };
+        (payload) => {
+          const freshMsg = {
+            id: payload.new.id,
+            groupId: payload.new.group_id,
+            text: payload.new.text,
+            sender: payload.new.sender_id === currentUserProfile?.id ? 'You' : 'Classmate',
+            initials: payload.new.sender_id === currentUserProfile?.id ? makeInitials(currentUserProfile?.full_name) : 'CM',
+            time: new Date(payload.new.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isMe: currentUserProfile ? payload.new.sender_id === currentUserProfile.id : false,
+            type: payload.new.type,
+            pollData: null
+          };
 
-            setMessages(prev => {
-              if (prev.some(m => m.id === freshMsg.id)) return prev;
-              return [...prev, freshMsg];
-            });
-          }
+          setMessages(prev => {
+            if (prev.some(m => m.id === freshMsg.id)) return prev;
+            return [...prev, freshMsg];
+          });
         }
       )
-      .on(
-        'postgres_changes', 
-        { event: 'UPDATE', schema: 'public', table: 'poll_options' }, 
-        (payload) => {
-          setMessages(prev => prev.map(msg => {
-            if (msg.type !== 'poll') return msg;
-            const updatedOptions = msg.pollData.options.map(opt => {
-              if (opt.id === payload.new.id) {
-                return { ...opt, votes: payload.new.votes || [] };
-              }
-              return opt;
-            });
-            return { ...msg, pollData: { ...msg.pollData, options: updatedOptions } };
-          }));
-        }
-      );
-
-    channel.subscribe();
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
@@ -272,26 +292,22 @@ export default function Chatpage() {
 
   // --- 7. CHAT SUBMISSION ACTIONS ---
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !activeGroup?.id) return;
+    if (!messageInput.trim() || !activeGroup?.id || !currentUserProfile?.id) {
+      console.warn("Message dropped: missing profile identifier block context");
+      return;
+    }
 
     const currentText = messageInput;
     setMessageInput('');
 
-    // Fallback gracefully if profile fails to load so sending never breaks
-    const senderName = currentUserProfile?.full_name || 'You';
-    const senderInitials = currentUserProfile?.initials || 'ME';
-
     const { error } = await supabase
       .from('messages')
-      .insert([
-        { 
-          group_id: activeGroup.id, 
-          text: currentText, 
-          sender: senderName, 
-          initials: senderInitials, 
-          type: 'text' 
-        }
-      ]);
+      .insert([{
+        group_id: activeGroup.id,
+        text: currentText.trim(),
+        sender_id: currentUserProfile.id, 
+        type: 'text'
+      }]);
 
     if (error) {
       console.error("Failed to sync message to backend:", error);
@@ -299,59 +315,64 @@ export default function Chatpage() {
     }
   };
 
-  // --- 8. POLL GENERATION SUBMISSION ---
-  const handleCreatePoll = async (question, pollOptions) => {
-    if (!activeGroup?.id || !currentUserProfile) return;
+  const handleLeaveGroup = async () => {
+    if (!activeGroup?.id || !currentUserProfile?.id) return;
+    
+    const { error } = await supabase
+      .from('group_members')
+      .delete()
+      .eq('group_id', activeGroup.id)
+      .eq('user_id', currentUserProfile.id);
 
-    const { data: messageHead, error: headError } = await supabase
-      .from('messages')
+    if (!error) {
+      setGroups(prev => prev.filter(g => g.id !== activeGroup.id));
+      setActiveGroup(null);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!activeGroup?.id) return;
+
+    const { error } = await supabase
+      .from('groups')
+      .delete()
+      .eq('id', activeGroup.id);
+
+    if (!error) {
+      setGroups(prev => prev.filter(g => g.id !== activeGroup.id));
+      setActiveGroup(null);
+    }
+  };
+
+  // --- 7.1 INVITE MEMBER HANDLER ---
+  const handleInviteFriendToGroup = async (friendId, groupId) => {
+    const { data, error } = await supabase
+      .from('group_members')
       .insert([
         {
-          group_id: activeGroup.id,
-          text: question,
-          sender: currentUserProfile.full_name,
-          initials: currentUserProfile.initials,
-          type: 'poll'
+          group_id: groupId,
+          user_id: friendId,
+          role: 'Member'
         }
       ])
       .select()
       .single();
 
-    if (headError || !messageHead) return;
+    if (!error && data) {
+      setGroupMembersTable(prev => [...prev, data]);
+    } else {
+      console.error("Database failed to add group relation row:", error);
+    }
+  };
 
-    const optionsPayload = pollOptions.map(opt => ({
-      message_id: messageHead.id,
-      option_text: opt,
-      votes: []
-    }));
-
-    await supabase.from('poll_options').insert(optionsPayload);
+  // --- 8. POLL GENERATION SUBMISSION ---
+  const handleCreatePoll = async (question, pollOptions) => {
+    console.log("Poll handling placeholder logic active");
   };
 
   // --- 9. POLL VOTING TRANSACTIONS ---
   const handleCastVote = async (messageId, optionId) => {
-    const targetMsg = messages.find(m => m.id === messageId);
-    if (!targetMsg || targetMsg.type !== 'poll' || !currentUserProfile) return;
-
-    const userSignature = currentUserProfile.full_name;
-
-    for (const opt of targetMsg.pollData.options) {
-      let activeVotesArray = opt.votes || [];
-      const hasSignature = activeVotesArray.includes(userSignature);
-
-      if (opt.id === optionId) {
-        activeVotesArray = hasSignature 
-          ? activeVotesArray.filter(v => v !== userSignature) 
-          : [...activeVotesArray, userSignature];
-      } else {
-        activeVotesArray = activeVotesArray.filter(v => v !== userSignature);
-      }
-
-      await supabase
-        .from('poll_options')
-        .update({ votes: activeVotesArray })
-        .eq('id', opt.id);
-    }
+    console.log("Poll voting placeholder logic active");
   };
 
   const handleAddDaySubmit = async (newDayData) => {
@@ -463,24 +484,61 @@ export default function Chatpage() {
     }
   };
 
+  // --- 10. CREATE GROUP SUBMISSION ---
   const handleCreateGroupSubmit = async (newGroup) => {
-    const { data, error } = await supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: groupData, error: groupError } = await supabase
       .from('groups')
       .insert([
         {
           name: newGroup.name,
-          icon: newGroup.icon || '✈️'
+          icon: newGroup.icon || '✈️',
+          leader: user.id 
         }
       ])
       .select()
       .single();
 
-    if (!error && data) {
-      setGroups([data, ...groups]);
-      setActiveGroup(data);
+    if (groupError || !groupData) {
+      console.error("Could not save new group records:", groupError);
+      return;
+    }
+
+    const rosterPayload = [
+      { group_id: groupData.id, user_id: user.id, role: 'Leader' }
+    ];
+
+    if (Array.isArray(newGroup.memberIds)) {
+      newGroup.memberIds.forEach(friendId => {
+        rosterPayload.push({
+          group_id: groupData.id,
+          user_id: friendId,
+          role: 'Member'
+        });
+      });
+    }
+
+    const { error: memberError } = await supabase
+      .from('group_members')
+      .insert(rosterPayload);
+
+    if (!memberError) {
+      const formattedNewGroup = {
+        id: groupData.id,
+        name: groupData.name,
+        icon: groupData.icon,
+        created_at: groupData.created_at,
+        role: 'Leader',
+        member_count: rosterPayload.length 
+      };
+
+      setGroups([formattedNewGroup, ...groups]);
+      setActiveGroup(formattedNewGroup);
       setIsCreateGroupOpen(false);
-    } else if (error) {
-      console.error("Could not save new group:", error);
+    } else {
+      console.error("Could not link roster profiles to group_members table:", memberError);
     }
   };
 
@@ -570,6 +628,19 @@ export default function Chatpage() {
               }}
               onCreatePoll={handleCreatePoll}
               onCastVote={handleCastVote}
+              currentUserProfile={currentUserProfile}
+              
+              /* 🌟 WIRED ALL LIFECYCLE LISTS AND ACTION HANDLERS DIRECTLY TO CHAT FEED */
+              onLeaveGroup={handleLeaveGroup}
+              onDeleteGroup={handleDeleteGroup}
+              onInviteFriend={handleInviteFriendToGroup}
+              groupMembersTable={groupMembersTable}
+              friendsList={userFollowsList}
+              usersList={allProfiles.map(p => ({
+                id: p.id,
+                name: p.full_name,
+                initials: makeInitials(p.full_name)
+              }))}
             />
           ) : (
             <div className="flex flex-col gap-6 animate-fadeIn w-full pb-12">
@@ -647,8 +718,8 @@ export default function Chatpage() {
         isOpen={isCreateGroupOpen}
         onClose={() => setIsCreateGroupOpen(false)}
         onCreateGroup={handleCreateGroupSubmit}
+        currentUserId={currentUserProfile?.id} 
       />
-
     </div>
   );
 }

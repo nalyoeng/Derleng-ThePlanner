@@ -3,11 +3,10 @@ import { Users, Plus, Link2 } from 'lucide-react';
 
 export default function GroupList({ groups, activeGroup, onSelectGroup, onCreateGroupClick }) {
   
-  // 🎨 Helper function to generate a consistent, tailored background color based on the group name
+  // 🎨 Helper function to generate a consistent background color based on the group name
   const getAvatarStyle = (name) => {
     if (!name) return { backgroundColor: '#E5E7EB', color: '#374151' };
     
-    // Premium tailwind-equivalent color palettes (Background vs Text matches)
     const palettes = [
       { bg: '#FEE2E2', text: '#991B1B' }, // Red
       { bg: '#FEF3C7', text: '#92400E' }, // Amber
@@ -19,7 +18,6 @@ export default function GroupList({ groups, activeGroup, onSelectGroup, onCreate
       { bg: '#E0F2FE', text: '#0369A1' }, // Sky
     ];
     
-    // Simple string hashing to always pick the same color for the same name
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -72,6 +70,9 @@ export default function GroupList({ groups, activeGroup, onSelectGroup, onCreate
           groups.map((group) => {
             const isSelected = activeGroup?.id === group.id;
             const avatarStyle = getAvatarStyle(group.name);
+            
+            // 🌟 UPDATED: Reads member_count falling back gracefully to 1 (the group leader)
+            const headcount = group.member_count ?? 1;
 
             return (
               <button
@@ -86,7 +87,7 @@ export default function GroupList({ groups, activeGroup, onSelectGroup, onCreate
               >
                 <div className="flex items-center gap-3">
                   
-                  {/* 🌟 NEW DYNAMIC TEXT AVATAR WITH RANDOM REPEATABLE COLOR */}
+                  {/* Dynamic Text Avatar */}
                   <div 
                     style={avatarStyle} 
                     className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm select-none tracking-wider transition-transform duration-200 group-hover:scale-105"
@@ -99,7 +100,7 @@ export default function GroupList({ groups, activeGroup, onSelectGroup, onCreate
                       {group.name}
                     </span>
                     <span className="text-[#6B7280] text-xs mt-0.5">
-                      {Array.isArray(group.members) ? group.members.length : (group.members || 0)} members
+                      {headcount} {headcount === 1 ? 'member' : 'members'}
                     </span>
                   </div>
                 </div>

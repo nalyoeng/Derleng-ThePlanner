@@ -12,7 +12,14 @@ export default function ActiveChat({
   onOpenSchedule, 
   onUpdateGroup,
   onCreatePoll, 
-  onCastVote    
+  onCastVote,
+  currentUserProfile,
+  onLeaveGroup,   // 🌟 FIXED: Incoming prop from parent page
+  onDeleteGroup,  // 🌟 FIXED: Incoming prop from parent page
+  friendsList = [],       // 🌟 Passed through to prevent empty states inside your submodal
+  usersList = [],         // 🌟 Passed through
+  groupMembersTable = [], // 🌟 Passed through
+  onInviteFriend          // 🌟 Passed through
 }) {
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isPollOpen, setIsPollOpen] = useState(false);
@@ -28,14 +35,14 @@ export default function ActiveChat({
     if (!name) return { backgroundColor: '#E5E7EB', color: '#374151' };
     
     const palettes = [
-      { bg: '#FEE2E2', text: '#991B1B' }, // Red
-      { bg: '#FEF3C7', text: '#92400E' }, // Amber
-      { bg: '#D1FAE5', text: '#065F46' }, // Emerald
-      { bg: '#DBEAFE', text: '#1E40AF' }, // Blue
-      { bg: '#E0E7FF', text: '#3730A3' }, // Indigo
-      { bg: '#F3E8FF', text: '#6B21A8' }, // Purple
-      { bg: '#FCE7F3', text: '#9D174D' }, // Pink
-      { bg: '#E0F2FE', text: '#0369A1' }, // Sky
+      { bg: '#FEE2E2', text: '#991B1B' }, 
+      { bg: '#FEF3C7', text: '#92400E' }, 
+      { bg: '#D1FAE5', text: '#065F46' }, 
+      { bg: '#DBEAFE', text: '#1E40AF' }, 
+      { bg: '#E0E7FF', text: '#3730A3' }, 
+      { bg: '#F3E8FF', text: '#6B21A8' }, 
+      { bg: '#FCE7F3', text: '#9D174D' }, 
+      { bg: '#E0F2FE', text: '#0369A1' }, 
     ];
     
     let hash = 0;
@@ -68,7 +75,6 @@ export default function ActiveChat({
           className="flex items-center gap-3 text-left hover:opacity-80 transition-opacity p-1 -m-1 rounded-xl focus:outline-none cursor-pointer"
           title="View Group Roster Info"
         >
-          {/* 🌟 NEW DYNAMIC TEXT AVATAR WITH CONSISTENT GENERATED COLOR */}
           <div 
             style={avatarStyle} 
             className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm select-none tracking-wider shrink-0"
@@ -105,7 +111,7 @@ export default function ActiveChat({
             >
               {!msg.isMe && (
                 <div className="w-6 h-6 rounded-full bg-emerald-100 text-[#0F5132] text-[9px] font-bold flex items-center justify-center shrink-0 shadow-sm select-none">
-                  {msg.initials}
+                  {msg.initials || '?'}
                 </div>
               )}
               
@@ -128,7 +134,7 @@ export default function ActiveChat({
                       {msg.pollData?.options.map((opt) => {
                         const totalVotes = msg.pollData.options.reduce((sum, o) => sum + (o.votes?.length || 0), 0);
                         const percentage = totalVotes > 0 ? Math.round(((opt.votes?.length || 0) / totalVotes) * 100) : 0;
-                        const hasVoted = opt.votes?.includes("ME");
+                        const hasVoted = currentUserProfile && opt.votes?.includes(currentUserProfile.full_name);
 
                         return (
                           <button
@@ -228,11 +234,18 @@ export default function ActiveChat({
         </form>
       </div>
 
+      {/* 🌟 FIXED BELOW: Correctly mapping props from parent through to modal instance context */}
       <GroupInfoModal 
         isOpen={isInfoOpen}
         onClose={() => setIsInfoOpen(false)}
         activeGroup={activeGroup}
         onUpdateGroup={onUpdateGroup}
+        onLeaveGroup={onLeaveGroup}
+        onDeleteGroup={onDeleteGroup}
+        friendsList={friendsList}
+        usersList={usersList}
+        groupMembersTable={groupMembersTable}
+        onInviteFriend={onInviteFriend}
       />
 
       <CreatePollModal 
