@@ -22,34 +22,15 @@ import Report from './features/admin/Report'
 // Components
 import DestinationPage from './components/DestinationPage'
 import ChatPage from './components/chatting/Chatpage'
-
-// Global Data Array
-const destinations = [
-  {
-    id: 1,
-    name: "Angkor Wat",
-    category: "Heritage",
-    location: "Siem Reap",
-    rating: 4.9,
-    reviews: 982,
-    price: 37,
-    days: "2-4 days",
-    img: "https://images.unsplash.com/photo-1564507592333-c60657eea523",
-    images: [
-      "https://images.unsplash.com/photo-1564507592333-c60657eea523",
-      "https://images.unsplash.com/photo-1580993072224-b1f4139bdca0"
-    ],
-    highlight: "Best sunrise in South Asia",
-    description: "The world's largest religious monument...",
-    tags: ["Temples", "Sunrise", "Heritage"],
-    mapLabel: "Angkor Wat, Siem Reap, Cambodia",
-  },
-]
-
 function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [favorites, setFavorites] = useState(new Set())
+
+  //get destination
+  const [destinations, setDestinations] = useState([])
+  const [destinationsLoading, setDestinationsLoading] = useState(true)
+  const [destinationsError, setDestinationsError] = useState('')
 
   const toggleFav = (id) =>
     setFavorites((prev) => {
@@ -83,13 +64,84 @@ function App() {
       listener.subscription.unsubscribe()
     }
   }, [])
+  // Load destinations from Supabase
+  useEffect(() => {
+  const loadDestinations = async () => {
+    setDestinationsLoading(true)
+    setDestinationsError('')
+
+    const { data, error } = await supabase
+      .from('destinations')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Destination error:', error)
+      setDestinationsError(error.message)
+      setDestinations([])
+      setDestinationsLoading(false)
+      return
+    }
+
+    const formattedDestinations = (data || []).map((destination) => ({
+      id: destination.id,
+      name: destination.name,
+      category: destination.category,
+      location: destination.location,
+
+      rating: destination.rating || 0,
+
+      reviews:
+        destination.reviews_count ||
+        destination.review_count ||
+        0,
+
+      price: destination.price || 0,
+      days: destination.days || '',
+
+      img:
+        destination.img ||
+        destination.image_url ||
+        '',
+
+      images: destination.images || [],
+
+      highlight: destination.highlight || '',
+      description: destination.description || '',
+      tags: destination.tags || [],
+
+      mapLabel:
+        destination.map_label ||
+        destination.mapLabel ||
+        destination.location ||
+        '',
+    }))
+
+    setDestinations(formattedDestinations)
+    setDestinationsLoading(false)
+  }
+
+  loadDestinations()
+}, [])
 
   const favoriteDestinations = destinations.filter((d) => favorites.has(d.id))
 
-  if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>
+  if (loading || destinationsLoading) return <div className="flex justify-center items-center h-screen">Loading...</div>
 
   if (!user) return <AuthPage />
+  if (destinationsError) {
+    return (
+      <div className="flex flex-col justify-center items-center h-screen gap-3">
+        <p className="text-red-600">
+          Failed to load destinations.
+        </p>
 
+        <p className="text-sm text-gray-500">
+          {destinationsError}
+        </p>
+      </div>
+    )
+  }
   return (
     <BrowserRouter>
       <Routes>
@@ -166,6 +218,7 @@ function App() {
                 destinationsList={destinations}
                 favorites={favorites}
                 onToggleFav={toggleFav}
+                user={user}
               />
             </div>
           }

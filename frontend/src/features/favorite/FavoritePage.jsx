@@ -1,7 +1,7 @@
 // components/FavoritesPage.jsx
 import React from 'react';
 import { Star, MapPin, Clock, DollarSign, Trash2 } from 'lucide-react';
-
+import {Link} from 'react-router-dom';
 const CAT_COLOR = {
   Heritage: "#8B6B3D",
   Beach: "#2B7A8C",
@@ -11,7 +11,14 @@ const CAT_COLOR = {
 };
 
 function FavoriteCard({ d, onRemove }) {
+  const handleRemove= (event)=> {
+    // stop the card from opening the detail page.
+    event.preventDefault();
+    event.stopPropagation();
+    onRemove(d.id);
+  }
   return (
+    <Link to={`/destination/${d.id}`} className="group">
     <div className="rounded-2xl overflow-hidden bg-[#F7F2E9] border border-[#ECE3D3] flex flex-col">
       <div className="relative h-40">
         <img src={d.img} alt={d.name} className="w-full h-full object-cover" />
@@ -66,6 +73,7 @@ function FavoriteCard({ d, onRemove }) {
         </div>
       </div>
     </div>
+    </Link>
   );
 }
 
