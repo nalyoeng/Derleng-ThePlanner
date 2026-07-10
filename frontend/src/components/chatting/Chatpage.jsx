@@ -104,8 +104,7 @@ export default function Chatpage() {
     fetchGroups();
   }, []); 
 
-  // --- 3. FETCH MESSAGES DATA ON GROUP OR PROFILE READY ---
-  // --- 3. FETCH MESSAGES DATA ON GROUP OR PROFILE READY ---
+  
 useEffect(() => {
   if (!activeGroup?.id) return;
 
@@ -113,9 +112,14 @@ useEffect(() => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // A. Fetch all users/profiles
-    const { data: profiles } = await supabase.from('profiles').select('id, full_name');
-    if (profiles) setAllProfiles(profiles);
+    // A. Fetch all users/profiles FIRST (selecting both full_name and username as a safety fallback)
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, username');
+    
+    if (profiles) {
+      setAllProfiles(profiles);
+    }
 
     // B. Fetch everyone currently belonging to the active group
     const { data: members } = await supabase
@@ -124,31 +128,31 @@ useEffect(() => {
       .eq('group_id', activeGroup.id);
     if (members) setGroupMembersTable(members);
 
-    // C. 🌟 FIX: Fetch only MUTUAL friends
-    // Step 1: Get everyone I follow
+    // C. Fetch only MUTUAL friends
     const { data: myFollowing } = await supabase
       .from('follows')
       .select('following_id')
       .eq('follower_id', user.id);
 
-    // Step 2: Get everyone who follows me
     const { data: myFollowers } = await supabase
       .from('follows')
       .select('follower_id')
       .eq('following_id', user.id);
 
     if (myFollowing && myFollowers) {
-      // Get array of IDs from both sides
       const followingIds = myFollowing.map(f => f.following_id);
       const followerIds = myFollowers.map(f => f.follower_id);
 
-      // Filter to keep only the mutual ones (IDs that exist in BOTH lists)
+      // Keep only mutual follows
       const mutualIds = followingIds.filter(id => followerIds.includes(id));
 
-      // Map mutual IDs to their profile names
       const resolvedFriends = mutualIds.map(friendId => {
+        // Find the profile using the fetched profiles directly to prevent race conditions
         const profileMatch = profiles?.find(p => p.id === friendId);
-        const name = profileMatch?.full_name || `User (${friendId.slice(0,4)}...)`;
+        
+        // Safety Fallback chain: full_name -> username -> Truncated ID
+        const name = profileMatch?.full_name || profileMatch?.username || `User (${friendId.slice(0, 4)})`;
+        
         return {
           id: friendId,
           name: name,
@@ -168,22 +172,27 @@ useEffect(() => {
       .order('created_at', { ascending: true });
 
     if (!msgError && oldMessages) {
-      const formattedOld = oldMessages.map(msg => ({
-        id: msg.id,
-        groupId: msg.group_id,
-        text: msg.text,
-        sender: msg.sender_id === user.id ? 'You' : 'Classmate',
-        initials: msg.sender_id === user.id ? 'You' : 'CM',
-        time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isMe: msg.sender_id === user.id,
-        type: msg.type
-      }));
+      const formattedOld = oldMessages.map(msg => {
+        const msgProfile = profiles?.find(p => p.id === msg.sender_id);
+        const senderName = msgProfile?.full_name || msgProfile?.username || 'Classmate';
+        
+        return {
+          id: msg.id,
+          groupId: msg.group_id,
+          text: msg.text,
+          sender: msg.sender_id === user.id ? 'You' : senderName,
+          initials: msg.sender_id === user.id ? 'You' : senderName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
+          time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isMe: msg.sender_id === user.id,
+          type: msg.type
+        };
+      });
       setMessages(formattedOld); 
     }
   };
 
   loadModalData();
-}, [activeGroup?.id, currentUserProfile]);
+}, [activeGroup?.id]); // Removed currentUserProfile from dependencies to prevent infinite loop re-renders
 
   // --- 4. LIVE REAL-TIME POSTGRES SYNC CHANNEL ---
   useEffect(() => {
