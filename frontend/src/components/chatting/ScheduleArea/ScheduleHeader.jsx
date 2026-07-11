@@ -2,41 +2,51 @@ import React from 'react';
 import { ArrowLeft, Edit3 } from 'lucide-react';
 import EditHeaderModal from './EditHeaderModal'; 
 
-export default function ScheduleHeader({ activeGroup, onUpdateGroupHeader, onBackToChat }) {
+export default function ScheduleHeader({ 
+  activeGroup, 
+  allProfiles = [],       // 🌟 FIX 1: Default to empty array in props
+  groupMembersTable = [], // 🌟 FIX 1: Default to empty array in props
+  onUpdateGroupHeader, 
+  onBackToChat 
+}) {
   const [isHeaderModalOpen, setIsHeaderModalOpen] = React.useState(false);
 
-  // 🌟 Extract initials dynamically from your database row members array
-  const getTravelersList = () => {
-    // Check if activeGroup.members exists and is an array
-    if (activeGroup?.members && Array.isArray(activeGroup.members)) {
-      return activeGroup.members.map(member => {
-        // If members are objects like { name: "Sok Vy" }, get initials
-        if (typeof member === 'object' && member?.name) {
-          return member.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-        }
-        // If members are strings like "Sok Vy", get initials
-        if (typeof member === 'string') {
-          return member.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-        }
-        return '??';
-      });
-    }
-    
-    // Fallback if no members array exists yet in this group row
-    return ['ME'];
+  // 1. Resolve Leader Name (Safely handles missing profiles)
+  const leaderProfile = allProfiles.find(p => p.id === activeGroup?.leader);
+  const leaderName = leaderProfile?.full_name || 'Unknown Leader';   
+
+  // 2. Resolve Travelers (🌟 FIX 2: Bulletproof filtering prevents crashes)
+  const travelers = allProfiles.filter(profile => 
+    groupMembersTable.some(member => member.user_id === profile.id && member.group_id === activeGroup?.id)
+  );
+
+  // 3. Helper: Generate initials safely (🌟 FIX 3: Checks if name is actually a string)
+  const getInitials = (name) => {
+    if (!name || typeof name !== 'string') return '??';
+    return name
+      .trim()
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
   };
 
-  const travelersList = getTravelersList();
-
+  // 4. Helper: Format currency
   const formatCostDisplay = (rawCost) => {
-    if (!rawCost) return '–';
-    return rawCost.toString().includes('$') ? rawCost : `~$${rawCost}`;
+    if (rawCost === null || rawCost === undefined) return '–';
+    const costString = rawCost.toString();
+    return costString.includes('$') ? costString : `~$${costString}`;
   };
+
+  // 5. Helper: Safe dates
+  const displayDates = (!activeGroup?.dates || activeGroup.dates === 'NULL') 
+    ? 'Not set' 
+    : activeGroup.dates;
 
   return (
     <div className="w-full bg-[#114B32] text-white rounded-3xl p-6 shadow-sm font-sans relative overflow-hidden">
       
-      {/* Top action row */}
       <div className="flex items-center justify-between mb-6">
         <button
           type="button"
@@ -57,57 +67,57 @@ export default function ScheduleHeader({ activeGroup, onUpdateGroupHeader, onBac
         </button>
       </div>
 
-      {/* Main Banner Title */}
-      <h1 className="font-['Playfair_Display',_serif] text-2xl md:text-3xl font-bold tracking-tight mb-6">
-        {activeGroup?.name || 'Untitled Trip'}
+      <h1 className="font-['Playfair_Display',_serif] text-2xl md:text-3xl font-bold tracking-tight mb-6 flex items-center gap-3">
+        {activeGroup?.icon && <span>{activeGroup.icon}</span>}
+        <span>{activeGroup?.name || 'Untitled Trip'}</span>
       </h1>
 
-      {/* Info Metadata Badges */}
       <div className="flex flex-wrap items-center gap-x-8 gap-y-4 pt-4 border-t border-white/10 text-xs text-white/80">
         <div>
           <span className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Dates</span>
-          <span className="font-semibold text-white">{activeGroup?.dates || 'Not set'}</span>
+          <span className="font-semibold text-white">{displayDates}</span>
         </div>
 
         <div>
-          <span className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Leader / Admin</span>
-          <span className="font-semibold text-white">{activeGroup?.planner || 'Not set'}</span>
+          <span className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Leader</span>
+          <span className="font-semibold text-white">{leaderName}</span>
         </div>
 
         <div>
           <span className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Est. cost / person</span>
-          <span className="font-semibold text-[#34D399]">{formatCostDisplay(activeGroup?.cost)}</span>
+          <span className="font-semibold text-[#34D399]">{formatCostDisplay(activeGroup?.estimate_cost)}</span>
         </div>
 
-        {/* 🌟 Dynamic Travelers List Component */}
         <div>
-          <span className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Travelers ({travelersList.length})</span>
+          <span className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">
+            Travelers ({travelers.length})
+          </span>
           <div className="flex items-center -space-x-1.5">
-            {travelersList.map((initials, index) => (
+            {travelers.map((profile) => (
               <div 
-                key={index} 
+                key={profile.id} 
                 className="w-6 h-6 rounded-full border border-[#114B32] text-[9px] font-bold text-gray-800 bg-emerald-100 flex items-center justify-center shadow-sm select-none"
-                title={activeGroup?.members?.[index]?.name || activeGroup?.members?.[index] || 'Traveler'}
+                title={profile.full_name}
               >
-                {initials}
+                {getInitials(profile.full_name)}
               </div>
             ))}
           </div>
         </div>
       </div>
 
+      {/* Make sure EditHeaderModal.jsx actually exists in this folder! */}
       <EditHeaderModal 
         isOpen={isHeaderModalOpen}
         onClose={() => setIsHeaderModalOpen(false)}
         currentData={{
-          title: activeGroup?.name,
+          name: activeGroup?.name,
           dates: activeGroup?.dates,
-          planner: activeGroup?.planner,
-          cost: activeGroup?.cost
+          estimate_cost: activeGroup?.estimate_cost,
+          leader: activeGroup?.leader
         }}
         onUpdateHeader={onUpdateGroupHeader} 
       />
-
     </div>
   );
 }

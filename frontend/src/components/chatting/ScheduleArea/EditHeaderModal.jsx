@@ -10,47 +10,41 @@ export default function EditHeaderModal({ isOpen, onClose, currentData, onUpdate
   const [isSaving, setIsSaving] = useState(false);
 
   // Sync state variables cleanly whenever the modal opens with fresh data
-  useEffect(() => {
-    if (isOpen && currentData) {
-      // Map 'name' and 'estimate_cost' from the new schema fields
-      setName(currentData.name || '');
-      setEstimateCost(currentData.estimate_cost || '');
-
-      // Parse dates if they exist in format "YYYY-MM-DD to YYYY-MM-DD"
-      if (currentData.dates && currentData.dates.includes(' to ')) {
-        const [start, end] = currentData.dates.split(' to ');
-        setStartDate(start || '');
-        setEndDate(end || '');
-      } else {
-        setStartDate('');
-        setEndDate('');
-      }
+  // Inside EditHeaderModal.jsx, update the useEffect:
+useEffect(() => {
+  if (isOpen && currentData) {
+    setName(currentData.name || '');
+    setEstimateCost(currentData.estimate_cost || ''); // Match DB column name
+    
+    if (currentData.dates && currentData.dates.includes(' to ')) {
+      const [start, end] = currentData.dates.split(' to ');
+      setStartDate(start || '');
+      setEndDate(end || '');
     }
-  }, [currentData, isOpen]);
+  }
+}, [currentData, isOpen]);
+
+// Update handleSubmit:
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setIsSaving(true);
+  const formattedDates = startDate && endDate ? `${startDate} to ${endDate}` : '';
+
+  try {
+    await onUpdateHeader({ 
+      name: name, // Matches DB column
+      dates: formattedDates, 
+      estimate_cost: estimateCost ? parseFloat(estimateCost) : 0.00 // Matches DB column
+    });
+    onClose();
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   if (!isOpen) return null;
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSaving(true);
-
-    // Combine start and end dates into a single string for your 'dates' database column
-    const formattedDates = startDate && endDate ? `${startDate} to ${endDate}` : startDate || endDate || '';
-
-    try {
-      // Pass the parameters named exactly like your Supabase table schema
-      await onUpdateHeader({ 
-        title: name, // Maps back to your update function's text expectation
-        dates: formattedDates, 
-        cost: estimateCost ? parseFloat(estimateCost) : 0.00 
-      });
-      onClose();
-    } catch (err) {
-      console.error("Failed to update trip details via modal:", err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   return createPortal(
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 font-sans animate-fadeIn">
