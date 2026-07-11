@@ -25,7 +25,9 @@ export default function DestinationPage({
     (item) => String(item.id) === String(id)
   );
 
-  const isFavorite = favorites?.has(dest?.id);
+ const isFavorite = favorites?.has(
+  String(dest?.id)
+)
 
   if (!dest) {
     return (
