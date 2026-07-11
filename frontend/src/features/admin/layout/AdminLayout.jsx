@@ -64,14 +64,18 @@ const roleLabel = {
   place_manager: 'Place Manager',
   moderator: 'Moderator',
 };
-
-export default function AdminLayout() {
+// add prop
+export default function AdminLayout({role,onLogout,}) {
   const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
 
   const visibleNav = allNavItems.filter((item) =>
     item.roles.includes(currentUser.role)
   );
+  //add
+  const handleLogout = async () => {
+  await onLogout?.()
+ }
 
   return (
     <div className="flex h-screen bg-[#faf8f3] font-sans overflow-hidden">
@@ -180,7 +184,7 @@ export default function AdminLayout() {
                     <p className="text-[11px] text-gray-400">{roleLabel[currentUser.role]}</p>
                   </div>
                   <button
-                    onClick={() => navigate('/login')}
+                    onClick={handleLogout}
                     className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-500 hover:bg-red-50"
                   >
                     <LogOut size={14} />

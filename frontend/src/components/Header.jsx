@@ -10,13 +10,20 @@ import {
   Settings2,
   HelpCircle,
   LogOut,
-  Heart
+  Heart,
+  X,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link,useLocation } from 'react-router-dom';
 import logoImg from '../assets/logo-no-bg.jpg';
 import FriendsPopover from './FriendsPopover';
 
-export default function Header({ user, onLogout }) {
+export default function Header({ 
+  user, 
+  onLogout,
+  showSearch = false,
+  searchTerm = "",
+  onSearchChange,
+  destinations = [],}) {
   const fullName = user?.user_metadata?.full_name || 'User';
   const email = user?.email || '';
 
@@ -27,10 +34,12 @@ export default function Header({ user, onLogout }) {
     .join('')
     .toUpperCase()
     .slice(0, 2);
-
+  const [showFilters, setShowFilters] =useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFriendsOpen, setIsFriendsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('Home'); // Tracks current page tab styling
+  const location = useLocation();
+
 
   const handleLogoutClick = () => {
     setIsMenuOpen(false);
@@ -49,7 +58,30 @@ export default function Header({ user, onLogout }) {
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, [isMenuOpen]);
+  const searchResults = destinations
+  .filter((destination) => {
+    const search = searchTerm.trim().toLowerCase();
 
+    if (!search) return false;
+
+    const tags = Array.isArray(destination.tags)
+      ? destination.tags.join(" ")
+      : destination.tags || "";
+
+    const searchText = [
+      destination.name,
+      destination.location,
+      destination.category,
+      destination.description,
+      tags,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return searchText.includes(search);
+  })
+  .slice(0, 6);
   return (
     <header className="relative z-50 w-full h-20 bg-[#FBFBFA]/90 backdrop-blur-md border-b border-[#EBE8E2] flex items-center justify-between px-8 shadow-sm">
 
@@ -72,7 +104,7 @@ export default function Header({ user, onLogout }) {
     <Link
       to="/"
       className={`px-5 py-2 text-sm font-medium tracking-wide rounded-full transition-all duration-200 ${
-        window.location.pathname === '/'
+        location.pathname === '/'
           ? 'bg-[#D2EBE1] text-[#1E4620] shadow-sm font-semibold'
           : 'text-gray-600 hover:text-black hover:bg-black/5'
       }`}
@@ -83,7 +115,7 @@ export default function Header({ user, onLogout }) {
     <Link
       to="/favorites"
       className={`px-5 py-2 text-sm font-medium tracking-wide rounded-full transition-all duration-200 ${
-        window.location.pathname === '/favorites'
+        location.pathname === '/favorites'
           ? 'bg-[#D2EBE1] text-[#1E4620] shadow-sm font-semibold'
           : 'text-gray-600 hover:text-black hover:bg-black/5'
       }`}
@@ -94,7 +126,7 @@ export default function Header({ user, onLogout }) {
     <Link
       to="/about"
       className={`px-5 py-2 text-sm font-medium tracking-wide rounded-full transition-all duration-200 ${
-        window.location.pathname === '/about'
+        location.pathname === '/about'
           ? 'bg-[#D2EBE1] text-[#1E4620] shadow-sm font-semibold'
           : 'text-gray-600 hover:text-black hover:bg-black/5'
       }`}
@@ -102,17 +134,87 @@ export default function Header({ user, onLogout }) {
       About Us
     </Link>
 
+
   </nav>
 
   {/* Global Search Bar field box */}
+  {showSearch && (
   <div className="relative flex-1 max-w-md">
-    <input
-      type="text"
-      placeholder="Search destinations, regions..."
-      className="w-full h-11 pl-5 pr-12 rounded-full bg-[#F3F1EC] border border-[#E1DDD4] text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-emerald-600/40 focus:bg-white transition-all"
-    />
-    <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+    <div className="relative">
+      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+
+      <input
+        type="search"
+        value={searchTerm}
+        onChange={(event) =>
+          onSearchChange?.(event.target.value)
+        }
+        placeholder="Search destinations, regions..."
+        className="w-full h-11 pl-11 pr-11 rounded-full bg-[#F3F1EC] border border-[#E1DDD4] text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-emerald-600/40 focus:bg-white transition-all"
+      />
+
+      {searchTerm && (
+        <button
+          type="button"
+          onClick={() => onSearchChange?.("")}
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+        >
+          <X size={16} />
+        </button>
+      )}
+    </div>
+
+    {/* Search suggestions */}
+    {searchTerm.trim() && (
+      <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#E1DDD4] rounded-2xl shadow-xl overflow-hidden z-[100]">
+        {searchResults.length === 0 ? (
+          <div className="p-4 text-sm text-gray-500 text-center">
+            No destinations found for “{searchTerm}”
+          </div>
+        ) : (
+          searchResults.map((destination) => {
+            const image =
+              destination.img ||
+              destination.image_url ||
+              destination.images?.[0];
+
+            return (
+              <Link
+                key={destination.id}
+                to={`/destination/${destination.id}`}
+                onClick={() => onSearchChange?.("")}
+                className="flex items-center gap-3 p-3 hover:bg-[#F6F4F0] border-b border-gray-100 last:border-b-0"
+              >
+                {image ? (
+                  <img
+                    src={image}
+                    alt={destination.name}
+                    className="w-12 h-12 rounded-xl object-cover"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-gray-200" />
+                )}
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">
+                    {destination.name}
+                  </p>
+
+                  <p className="text-xs text-gray-500 truncate">
+                    {destination.location}
+                    {destination.category
+                      ? ` · ${destination.category}`
+                      : ""}
+                  </p>
+                </div>
+              </Link>
+            );
+          })
+        )}
+      </div>
+    )}
   </div>
+)}
 </div>
 
       {/* RIGHT: System Interactive Utility Buttons & Actions */}
@@ -176,16 +278,16 @@ export default function Header({ user, onLogout }) {
 
               <div className="mt-2 space-y-0.5">
                 {/* Linked Profile Pages */}
-                <Link to="/profile" className="flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#F6F4F0] rounded-xl transition-colors">
+                <Link to="/profile?tab=overview" className="flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#F6F4F0] rounded-xl transition-colors">
                   <UserCircle2 size={16} className="text-gray-400" /> My Profile
                 </Link>
-                <Link to="/trips" className="flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#F6F4F0] rounded-xl transition-colors">
+                <Link to="/profile?tab=trips" className="flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#F6F4F0] rounded-xl transition-colors">
                   <MapPin size={16} className="text-gray-400" /> My Trips
                 </Link>
-                <Link to="/saved" className="flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#F6F4F0] rounded-xl transition-colors">
+                <Link to="/profile?tab=saved" className="flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#F6F4F0] rounded-xl transition-colors">
                   <Heart size={16} className="text-gray-400" /> Saved Places
                 </Link>
-                <Link to="/settings" className="flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#F6F4F0] rounded-xl transition-colors">
+                <Link to="/profile?tab=settings" className="flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#F6F4F0] rounded-xl transition-colors">
                   <Settings2 size={16} className="text-gray-400" /> Settings
                 </Link>
                 <Link to="/help" className="flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#F6F4F0] rounded-xl transition-colors">

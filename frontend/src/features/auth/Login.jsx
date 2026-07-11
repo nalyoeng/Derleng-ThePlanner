@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { Eye, EyeOff, Mail, Lock, Compass, ArrowRight, Check, AlertCircle, Loader2 } from "lucide-react";
 import {supabase} from "../../lib/supabaseClient";
+import{useNavigate} from "react-router-dom";
+import {
+  ADMIN_ROLES,
+  normalizeRole,
+} from "../../constants/roles";
 /* ─── shared constants ─── */
 const COLORS = {
   forest: "#0F5132",
@@ -99,27 +104,104 @@ export default function LoginPage({ onSuccess, onRegister }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-
+  const navigate= useNavigate();
   const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
 
-  const submit = async () => {
-  const e = validate(form);
-  setErrors(e);
-  if (Object.keys(e).length) return;
+  const submit = async (event) => {
+    event?.preventDefault();
+    const validationErrors = validate(form);
+    setErrors(validationErrors);
 
-  setLoading(true);
+    if (Object.keys(validationErrors).length) {
+      return;
+    }
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: form.email,
-    password: form.password,
-  });
+    setLoading(true);
+    setErrors({});
 
-  setLoading(false);
+    try {
+      // 1. Check email and password
+      const {
+        data: authData,
+        error: loginError,
+      } = await supabase.auth.signInWithPassword({
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+      });
 
-  if (error) {
-    setErrors({ email: error.message });
-    return;
-  }
+      if (loginError) {
+        setErrors({
+          email: "Incorrect email or password.",
+        });
+        return;
+      }
+
+      const loggedInUser = authData.user;
+
+      if (!loggedInUser) {
+        setErrors({
+          email: "Login failed. Please try again.",
+        });
+        return;
+      }
+
+      // 2. Get the role from public.profiles
+      const {
+        data: profile,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .select(`
+          id,
+          full_name,
+          username,
+          role
+        `)
+        .eq("id", loggedInUser.id)
+        .single();
+
+      if (profileError || !profile) {
+        console.error(
+          "Profile role error:",
+          profileError
+        );
+
+        await supabase.auth.signOut();
+        setErrors({
+          email:
+            "Your profile could not be loaded.",
+        });
+        return;
+      }
+
+      const role = normalizeRole(profile.role);
+
+      // 3. Show the success screen
+      setSuccess(true);
+      // 4. Redirect based on role
+      setTimeout(() => {
+        if (ADMIN_ROLES.includes(role)) {
+          navigate("/admin/dashboard", {
+            replace: true,
+          });
+        } else {
+          navigate("/", {
+            replace: true,
+          });
+        }
+      }, 800);
+    } catch (error) {
+      console.error(
+        "Unexpected login error:",
+        error
+      );
+      setErrors({
+        email:
+          "Something went wrong. Please try again.",
+      });
+    } finally {
+      setLoading(false);
+    }
 };
 
   /* ── Success screen ── */
@@ -133,7 +215,12 @@ export default function LoginPage({ onSuccess, onRegister }) {
           <h2 className="text-2xl font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif" }}>
             Welcome back!
           </h2>
-          <p className="text-sm" style={{ color: COLORS.muted }}>Redirecting you to your trips...</p>
+            <p
+            className="text-sm"
+            style={{ color: COLORS.muted }}
+          >
+            Checking your account and redirecting...
+          </p>
         </div>
       </div>
     );
@@ -227,7 +314,7 @@ export default function LoginPage({ onSuccess, onRegister }) {
             <p className="text-sm" style={{ color: COLORS.muted }}>
               Don't have an account?{" "}
               <button
-                onClick={onRegister}
+                onClick={() => navigate("/register")}
                 className="font-semibold underline"
                 style={{ color: COLORS.forest }}
               >
@@ -265,7 +352,7 @@ export default function LoginPage({ onSuccess, onRegister }) {
               onChange={set("password")}
               error={errors.password}
               right={
-                <button onClick={() => setShowPw((s) => !s)} className="text-gray-400 hover:text-gray-600">
+                <button type="button" onClick={() => setShowPw((s) => !s)} className="text-gray-400 hover:text-gray-600">
                   {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               }
