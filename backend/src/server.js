@@ -3,10 +3,12 @@ import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
 
-import pollRoutes    from './routes/pollRoutes.js';
-import tripRoutes    from './routes/tripRoutes.js';
-import adminRoutes   from './routes/adminRoutes.js';
-import friendRoutes  from './routes/friendRoutes.js';
+// Import Routes
+import pollRoutes from './routes/pollRoutes.js';
+import tripRoutes from './routes/tripRoutes.js';
+// import adminRoutes from './routes/adminRoutes.js';
+import friendRoutes from './routes/friendRoutes.js';
+import followRoutes from './routes/followRoutes.js'; 
 
 const app  = express();
 const PORT = process.env.PORT || 5000;
@@ -25,6 +27,7 @@ app.use('/api/polls',   pollRoutes);
 app.use('/api/trips',   tripRoutes);
 app.use('/api/admin',   adminRoutes);
 app.use('/api/friends', friendRoutes);
+app.use('/api/follow', followRoutes);
 
 // Global error handler
 app.use((err, req, res, next) => {
@@ -33,5 +36,5 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server spinning on: http://localhost:${PORT}`);
+  console.log(`Server spinning on: http://localhost:${PORT}`);
 });

@@ -30,16 +30,36 @@ export default function Chatpage() {
   const [messages, setMessages] = useState([]);
   const [isDayModalOpen, setIsDayModalOpen] = useState(false);
   const [currentEditingDay, setCurrentEditingDay] = useState(null); 
+  const [currentUserProfile, setCurrentUserProfile] = useState(null);
+
   const activeGroupMessages = messages.filter(msg => 
     String(msg.groupId) === String(activeGroup?.id)
   );
 
-  // 🌟 NAVIGATION WORKFLOW HANDLER: Switches view mode state back to text stream panels
   const handleBackToChat = () => {
     setViewMode('chat');
   };
 
-  // --- 1. FETCH INITIAL GROUPS DATA ON MOUNT ---
+  // --- 1. FETCH PROFILE ON MOUNT ---
+  useEffect(() => {
+    const getLoggedInUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username, full_name, initials')
+          .eq('id', user.id)
+          .single();
+          
+        if (profile) {
+          setCurrentUserProfile(profile);
+        }
+      }
+    };
+    getLoggedInUser();
+  }, []);
+
+  // --- 2. FETCH GROUPS ON MOUNT (FIXED INIFINITE LOOP BY REMOVING activeGroup DEPENDENCY) ---
   useEffect(() => {
     const fetchGroups = async () => {
       const { data, error } = await supabase
@@ -58,9 +78,9 @@ export default function Chatpage() {
     };
 
     fetchGroups();
-  }, [activeGroup]);
+  }, []); // 👈 Kept empty so it only executes once on app load
 
-  // --- 2. FETCH MESSAGES DATA ON GROUP SWITCH ---
+  // --- 3. FETCH MESSAGES DATA ON GROUP OR PROFILE READY ---
   useEffect(() => {
     if (!activeGroup?.id) return;
 
@@ -82,7 +102,8 @@ export default function Chatpage() {
           sender: msg.sender,
           initials: msg.initials,
           time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isMe: String(msg.sender).trim().toLowerCase() === 'you',
+          isMe: String(msg.sender).trim().toLowerCase() === 'you' || 
+      (currentUserProfile && String(msg.sender).trim() === String(currentUserProfile.full_name).trim()),
           type: msg.type,
           pollData: msg.type === 'poll' ? {
             question: msg.text,
@@ -98,9 +119,9 @@ export default function Chatpage() {
     };
 
     fetchMessages();
-  }, [activeGroup?.id]);
+  }, [activeGroup?.id, currentUserProfile]); // Added profile tracking to evaluate alignment cleanly
 
-  // --- 3. LIVE REAL-TIME DATABASE TRANSACTION SUBSCRIBER ---
+  // --- 4. LIVE REAL-TIME POSTGRES SYNC CHANNEL ---
   useEffect(() => {
     if (!activeGroup?.id) return;
 
@@ -132,7 +153,8 @@ export default function Chatpage() {
                 sender: data.sender,
                 initials: data.initials,
                 time: 'Just now',
-                isMe: String(data.sender).trim().toLowerCase() === 'you',
+                isMe: String(payload.new.sender).trim().toLowerCase() === 'you' || 
+      (currentUserProfile && String(payload.new.sender).trim() === String(currentUserProfile.full_name).trim()),
                 type: 'poll',
                 pollData: {
                   question: data.text,
@@ -149,7 +171,8 @@ export default function Chatpage() {
               sender: payload.new.sender,
               initials: payload.new.initials,
               time: 'Just now',
-              isMe: String(payload.new.sender).trim().toLowerCase() === 'you',
+              // 🌟 FIXED REAL-TIME STREAM LAYOUT COLOR:
+              isMe: currentUserProfile ? String(payload.new.sender).trim() === String(currentUserProfile.full_name).trim() : false,
               type: 'text'
             };
 
@@ -177,18 +200,14 @@ export default function Chatpage() {
         }
       );
 
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.log(`Successfully connected to live stream room: ${channelName}`);
-      }
-    });
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeGroup?.id]);
+  }, [activeGroup?.id, currentUserProfile]);
 
-  // 🔗 DIRECT SUPABASE SYNC: LOAD TRIP DAYS
+  // --- 5. ITINERARY DAYS SYNCHRONIZER ---
   useEffect(() => {
     if (!activeGroup?.id || viewMode !== 'schedule') return;
 
@@ -216,7 +235,7 @@ export default function Chatpage() {
     loadItineraryDays();
   }, [activeGroup?.id, viewMode]);
 
-  // 🔗 DIRECT SUPABASE SYNC: LOAD ACTIVITIES
+  // --- 6. ACTIVITIES CARD SYNCHRONIZER ---
   useEffect(() => {
     if (!activeDay || viewMode !== 'schedule') return;
 
@@ -251,12 +270,16 @@ export default function Chatpage() {
     loadActivitiesByDay();
   }, [activeDay, viewMode]);
 
-  // --- 4. PERSIST CHAT TO BACKEND ---
+  // --- 7. CHAT SUBMISSION ACTIONS ---
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !activeGroup?.id) return;
 
     const currentText = messageInput;
     setMessageInput('');
+
+    // Fallback gracefully if profile fails to load so sending never breaks
+    const senderName = currentUserProfile?.full_name || 'You';
+    const senderInitials = currentUserProfile?.initials || 'ME';
 
     const { error } = await supabase
       .from('messages')
@@ -264,8 +287,8 @@ export default function Chatpage() {
         { 
           group_id: activeGroup.id, 
           text: currentText, 
-          sender: 'You', 
-          initials: 'ME', 
+          sender: senderName, 
+          initials: senderInitials, 
           type: 'text' 
         }
       ]);
@@ -276,9 +299,9 @@ export default function Chatpage() {
     }
   };
 
-  // --- 5. PERSIST POLL OBJECTS ---
+  // --- 8. POLL GENERATION SUBMISSION ---
   const handleCreatePoll = async (question, pollOptions) => {
-    if (!activeGroup?.id) return;
+    if (!activeGroup?.id || !currentUserProfile) return;
 
     const { data: messageHead, error: headError } = await supabase
       .from('messages')
@@ -286,8 +309,8 @@ export default function Chatpage() {
         {
           group_id: activeGroup.id,
           text: question,
-          sender: 'You',
-          initials: 'ME',
+          sender: currentUserProfile.full_name,
+          initials: currentUserProfile.initials,
           type: 'poll'
         }
       ])
@@ -305,12 +328,12 @@ export default function Chatpage() {
     await supabase.from('poll_options').insert(optionsPayload);
   };
 
-  // --- 6. CAST VOTE ROUTINE ---
+  // --- 9. POLL VOTING TRANSACTIONS ---
   const handleCastVote = async (messageId, optionId) => {
     const targetMsg = messages.find(m => m.id === messageId);
-    if (!targetMsg || targetMsg.type !== 'poll') return;
+    if (!targetMsg || targetMsg.type !== 'poll' || !currentUserProfile) return;
 
-    const userSignature = "ME";
+    const userSignature = currentUserProfile.full_name;
 
     for (const opt of targetMsg.pollData.options) {
       let activeVotesArray = opt.votes || [];
@@ -331,7 +354,6 @@ export default function Chatpage() {
     }
   };
 
-  // 🔗 DIRECT SUPABASE SYNC: ADD NEW TRIP DAY
   const handleAddDaySubmit = async (newDayData) => {
     if (!activeGroup?.id) return;
 
@@ -358,7 +380,6 @@ export default function Chatpage() {
     }
   };
 
-  // 🔗 DIRECT SUPABASE SYNC: ADD NEW ACTIVITY
   const handleAddActivitySubmit = async (newAct) => {
     if (!activeDay) return;
 
@@ -400,7 +421,6 @@ export default function Chatpage() {
     }
   };
 
-  // 🔗 DIRECT SUPABASE SYNC: DELETE ACTIVITY CARD
   const handleDeleteActivity = async (activityId) => {
     try {
       const { error } = await supabase
@@ -416,7 +436,6 @@ export default function Chatpage() {
     }
   };
 
-  // Handles saving header changes back to Supabase
   const handleUpdateTripHeader = async (updatedFields) => {
     if (!activeGroup?.id) return;
 
@@ -424,7 +443,7 @@ export default function Chatpage() {
       const { data, error } = await supabase
         .from('groups')
         .update({
-          name: updatedFields.title,       
+          name: updatedFields.title,      
           dates: updatedFields.dates,     
           planner: updatedFields.planner,
           cost: updatedFields.cost
@@ -495,8 +514,6 @@ export default function Chatpage() {
         .single();
 
       if (error) throw error;
-
-      // Update state using the confirmed database response
       setScheduleDays(prevDays => prevDays.map(day => day.id === updatedDay.id ? data : day));
     } catch (err) {
       console.error("Failed to update day in Supabase:", err.message);
@@ -510,7 +527,6 @@ export default function Chatpage() {
         if (error) throw error;
 
         setScheduleDays(prevDays => prevDays.filter(day => day.id !== dayId));
-        
         if (activeDay === dayId) {
           setActiveDay(null);
         }
@@ -609,14 +625,13 @@ export default function Chatpage() {
       <AddDayModal 
         isOpen={isDayModalOpen} 
         onClose={() => setIsDayModalOpen(false)} 
-        // 🌟 FIXED: Wrapped handles to guarantee the modal closes properly on both operations
         onAddDay={async (newDayData) => {
           await handleAddDaySubmit(newDayData);
-          setIsDayModalOpen(false); // Make sure this specific state closes
+          setIsDayModalOpen(false);
         }} 
         onUpdateDay={async (updatedDay) => {
           await handleUpdateDay(updatedDay);
-          setIsDayModalOpen(false); // Close the modal window after editing
+          setIsDayModalOpen(false);
         }}
         editingDay={currentEditingDay}
       />
