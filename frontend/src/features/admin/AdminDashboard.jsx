@@ -1,15 +1,6 @@
-import { useState } from 'react';
-import { Search } from 'lucide-react';
-
-const dummyUsers = [
-  { id: 1, name: 'Sophea Vann',   initials: 'SV', color: 'bg-emerald-700', email: 'sophea@mittours.kh',   joined: 'Jan 2024', role: 'super_admin' },
-  { id: 2, name: 'Dara Keo',      initials: 'DK', color: 'bg-yellow-600',  email: 'dara@gmail.com',        joined: 'Mar 2024', role: 'place_manager' },
-  { id: 3, name: 'Maly Chan',     initials: 'MC', color: 'bg-teal-600',    email: 'maly.chan@yahoo.com',   joined: 'Feb 2024', role: 'moderator' },
-  { id: 4, name: 'troll_user_99', initials: 'TU', color: 'bg-red-400',     email: 'fake_99@temp.net',      joined: 'Dec 2024', role: 'user', banned: true },
-  { id: 5, name: 'spam_bot_123',  initials: 'SB', color: 'bg-pink-400',    email: 'bot@malicious.net',     joined: 'Dec 2024', role: 'user', banned: true },
-  { id: 6, name: 'Reaksa Heng',   initials: 'RH', color: 'bg-purple-500',  email: 'reaksa@gmail.com',      joined: 'Jun 2024', role: 'user' },
-  { id: 7, name: 'Bopha Lim',     initials: 'BL', color: 'bg-stone-600',   email: 'bopha.l@outlook.com',   joined: 'Apr 2024', role: 'user' },
-];
+import { useState, useEffect } from 'react';
+import { Search, RefreshCw } from 'lucide-react';
+import { fetchAllUsers } from '../../lib/adminApi';
 
 const adminRoles = ['super_admin', 'place_manager', 'moderator'];
 
@@ -28,13 +19,31 @@ const roleBadge = {
 };
 
 export default function AdminDashboard() {
+  const [users, setUsers]     = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState('');
   const [filter, setFilter]   = useState('All');
   const [search, setSearch]   = useState('');
 
-  const filtered = dummyUsers.filter((u) => {
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await fetchAllUsers();
+      setUsers(data);
+    } catch (err) {
+      setError('Failed to load users. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadUsers(); }, []);
+
+  const filtered = users.filter((u) => {
     const matchSearch =
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase());
+      u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+      u.email?.toLowerCase().includes(search.toLowerCase());
     const matchFilter =
       filter === 'All'   ? true :
       filter === 'Admin' ? adminRoles.includes(u.role) :
@@ -44,8 +53,23 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-[#C8A45A] italic mb-1">Dashboard</h1>
+      <div className="flex items-center justify-between mb-1">
+        <h1 className="text-xl font-semibold text-[#C8A45A] italic">Dashboard</h1>
+        <button
+          onClick={loadUsers}
+          className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-all"
+        >
+          <RefreshCw size={13} /> Refresh
+        </button>
+      </div>
       <p className="text-sm text-gray-400 mb-5">Overview</p>
+
+      {/* Error */}
+      {error && (
+        <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">
+          {error}
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="flex items-center gap-3 mb-4">
@@ -82,36 +106,62 @@ export default function AdminDashboard() {
           ))}
         </div>
 
-        {filtered.length === 0 ? (
+        {/* Loading */}
+        {loading && (
+          <div className="py-12 text-center">
+            <div className="w-6 h-6 border-2 border-[#C8A45A] border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+            <p className="text-sm text-gray-400">Loading users...</p>
+          </div>
+        )}
+
+        {/* Empty */}
+        {!loading && filtered.length === 0 && (
           <div className="py-12 text-center text-sm text-gray-400">No users found</div>
-        ) : (
-          filtered.map((u) => (
-            <div
-              key={u.id}
-              className={`grid grid-cols-[2fr_2fr_1fr_1fr] px-5 py-3 border-b border-gray-50 hover:bg-orange-50/30 transition-all items-center last:border-0
-                ${u.banned ? 'opacity-50' : ''}`}
-            >
-              {/* User */}
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-full ${u.color} flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0`}>
-                  {u.initials}
-                </div>
-                <span className={`text-sm font-medium ${u.banned ? 'line-through text-gray-400' : 'text-[#3d2e00]'}`}>
-                  {u.name}
-                </span>
+        )}
+
+        {/* Rows */}
+        {!loading && filtered.map((u) => (
+          <div
+            key={u.id}
+            className={`grid grid-cols-[2fr_2fr_1fr_1fr] px-5 py-3 border-b border-gray-50 hover:bg-orange-50/30 transition-all items-center last:border-0
+              ${u.ban_type !== 'none' ? 'opacity-50' : ''}`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-emerald-700 flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
+                {u.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
               </div>
-              {/* Email */}
-              <span className="text-sm text-gray-500">{u.email}</span>
-              {/* Joined */}
-              <span className="text-sm text-gray-400">{u.joined}</span>
-              {/* Role */}
-              <span className={`text-[11px] font-semibold px-3 py-1 rounded-full w-fit ${roleBadge[u.role]}`}>
-                {roleLabel[u.role]}
+              <span className={`text-sm font-medium ${u.ban_type !== 'none' ? 'line-through text-gray-400' : 'text-[#3d2e00]'}`}>
+                {u.full_name || u.email}
               </span>
             </div>
-          ))
-        )}
+            <span className="text-sm text-gray-500">{u.email}</span>
+            <span className="text-sm text-gray-400">
+              {u.created_at ? new Date(u.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'}
+            </span>
+            <span className={`text-[11px] font-semibold px-3 py-1 rounded-full w-fit ${roleBadge[u.role] || 'bg-gray-100 text-gray-500'}`}>
+              {roleLabel[u.role] || u.role}
+            </span>
+          </div>
+        ))}
       </div>
+
+      {/* Stats */}
+      {!loading && (
+        <div className="flex gap-3 mt-4">
+          <div className="bg-white border border-gray-100 rounded-xl px-4 py-2 text-center">
+            <p className="text-lg font-bold text-[#3d2e00]">{users.length}</p>
+            <p className="text-[10px] text-gray-400">Total users</p>
+          </div>
+          <div className="bg-white border border-gray-100 rounded-xl px-4 py-2 text-center">
+            <p className="text-lg font-bold text-orange-500">{users.filter(u => adminRoles.includes(u.role)).length}</p>
+            <p className="text-[10px] text-gray-400">Admins</p>
+          </div>
+          <div className="bg-white border border-gray-100 rounded-xl px-4 py-2 text-center">
+            <p className="text-lg font-bold text-red-500">{users.filter(u => u.ban_type !== 'none').length}</p>
+            <p className="text-[10px] text-gray-400">Banned</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

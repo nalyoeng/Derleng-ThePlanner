@@ -12,3 +12,5 @@ const supabase = createClient(
 
 // 🌟 FIX: Change module.exports to export default!
 export default supabase;
+console.log('✅ Supabase client initialized');
+console.log('URL loaded:', !!process.env.SUPABASE_URL);

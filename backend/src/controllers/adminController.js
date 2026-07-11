@@ -7,14 +7,28 @@ import supabase from '../config/supabase.js';
 // GET /api/admin/users — get all users
 export const getAllUsers = async (req, res) => {
   try {
+
+
+    console.log('=== getAllUsers called by user:', req.profile?.email || 'unknown');
+    console.log('User role:', req.profile?.role);
+
+
     const { data, error } = await supabase
       .from('profiles')
       .select('id, full_name, email, role, ban_type, created_at')
       .order('created_at', { ascending: false });
 
-    if (error) return res.status(400).json({ error: error.message });
+
+    if (error) {
+      console.error('❌ Supabase Error:', error);
+      return res.status(400).json({ error: error.message });
+    }
+
+    console.log(`✅ Successfully fetched ${data?.length || 0} users`);
     return res.status(200).json({ users: data });
   } catch (err) {
+    console.error('❌ Server Error in getAllUsers:', err);
+
     return res.status(500).json({ error: err.message });
   }
 };

@@ -38,9 +38,13 @@ router.use(isAuthenticated);
 // GET /api/admin/users
 router.get('/users', isSuperAdmin, getAllUsers);
 
+
+
+
 // ── Create Admin & Revoke ────────────────────────────────────
 // POST /api/admin/create
-router.post('/create', isSuperAdmin, createAdmin);
+router.get('/users', isSuperAdmin, getAllUsers);
+
 
 // PATCH /api/admin/revoke/:id
 router.patch('/revoke/:id', isSuperAdmin, revokeAdmin);
