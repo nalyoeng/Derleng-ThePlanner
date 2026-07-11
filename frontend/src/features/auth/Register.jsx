@@ -131,6 +131,7 @@ export default function RegisterPage({ onSuccess, onLogin }) {
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [serverError, setServerError] = useState("");
 
   const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
 
@@ -138,78 +139,73 @@ export default function RegisterPage({ onSuccess, onLogin }) {
   const score = strengthScore(pw);
 
   const submit = async () => {
-  const e = validate(form);
+  const validationErrors = validate(form);
 
   if (!agreed) {
-    e.terms = "You must accept the terms to continue";
+    validationErrors.terms =
+      "You must accept the terms to continue";
   }
 
-  setErrors(e);
+  setErrors(validationErrors);
+  setServerError("");
 
-  if (Object.keys(e).length) return;
+  if (Object.keys(validationErrors).length > 0) {
+    return;
+  }
 
   setLoading(true);
 
-  // Normalize username
-  const username = form.username.trim().toLowerCase();
+  const username = form.username
+    .trim()
+    .toLowerCase();
 
-  // Check if username already exists
-  const { data: existingUser, error: checkError } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("username", username)
-    .maybeSingle();
-
-  if (checkError) {
-    setLoading(false); // was missing — button would spin forever on this path
-    setErrors({ username: checkError.message });
-    return;
-  }
-
-  if (existingUser) {
-    setLoading(false);
-    setErrors({
-      username: "Username is already taken.",
-    });
-    return;
-  }
-
-  // Create authentication user.
-  // The `profiles` row is created automatically by the
-  // on_auth_user_created Postgres trigger (handle_new_user) —
-  // do NOT insert into profiles manually here, it will conflict
-  // with the row the trigger already created.
-  const { data, error } = await supabase.auth.signUp({
-    email: form.email.trim(),
-    password: form.password,
-    options: {
-      data: {
-        full_name: form.name.trim(),
-        username,
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email: form.email.trim().toLowerCase(),
+      password: form.password,
+      options: {
+        data: {
+          full_name: form.name.trim(),
+          username,
+        },
       },
-    },
-  });
-
-  if (error) {
-    setLoading(false);
-    setErrors({
-      email: error.message,
     });
-    return;
-  }
 
-  if (!data.user) {
+    if (error) {
+      console.error("Signup message:", error.message);
+      console.error("Signup code:", error.code);
+      console.error("Signup status:", error.status);
+
+      setServerError(
+        typeof error.message === "string" &&
+          error.message.length > 0
+          ? error.message
+          : "Unable to create the account."
+      );
+
+      return;
+    }
+
+    if (!data?.user) {
+      setServerError(
+        "Supabase did not create the account."
+      );
+      return;
+    }
+
+    setSuccess(true);
+    onSuccess?.(data.user);
+  } catch (error) {
+    console.error("Unexpected signup error:", error);
+
+    setServerError(
+      error instanceof Error
+        ? error.message
+        : "Could not connect to Supabase."
+    );
+  } finally {
     setLoading(false);
-    setErrors({
-      email: "Unable to create account.",
-    });
-    return;
   }
-
-  setLoading(false);
-  setSuccess(true);
-
-  onSuccess?.(data.user);
 };
 
   /* ── Success screen ── */
@@ -359,7 +355,7 @@ export default function RegisterPage({ onSuccess, onLogin }) {
               onChange={set("password")}
               error={errors.password}
               right={
-                <button onClick={() => setShowPw((s) => !s)} className="text-gray-400 hover:text-gray-600">
+                <button type="button" onClick={() => setShowPw((s) => !s)} className="text-gray-400 hover:text-gray-600">
                   {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               }
@@ -392,7 +388,7 @@ export default function RegisterPage({ onSuccess, onLogin }) {
               onChange={set("confirm")}
               error={errors.confirm}
               right={
-                <button onClick={() => setShowConfirm((s) => !s)} className="text-gray-400 hover:text-gray-600">
+                <button type="button"  onClick={() => setShowConfirm((s) => !s)} className="text-gray-400 hover:text-gray-600">
                   {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               }
@@ -423,9 +419,14 @@ export default function RegisterPage({ onSuccess, onLogin }) {
               <AlertCircle size={11} /> {errors.terms}
             </p>
           )}
-
+          {serverError && (
+            <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-300 text-red-600 text-sm">
+              {serverError}
+            </div>
+          )}
           {/* submit */}
           <button
+            type="button"
             onClick={submit}
             disabled={loading}
             className="w-full mt-4 py-3 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-70"

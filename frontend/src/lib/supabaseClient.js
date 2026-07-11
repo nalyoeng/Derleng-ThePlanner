@@ -1,6 +1,26 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from '@supabase/supabase-js'
 
-export const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error(
+    'Missing VITE_SUPABASE_URL or Supabase browser key in .env.local'
+  )
+}
+
+const globalKey = '__DERLENG_SUPABASE_CLIENT__'
+
+export const supabase =
+  globalThis[globalKey] ||
+  createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  })
+
+globalThis[globalKey] = supabase
