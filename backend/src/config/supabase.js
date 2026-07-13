@@ -1,16 +1,35 @@
-// backend/src/config/supabase.js
-import { createClient } from '@supabase/supabase-js';
-import 'dotenv/config';
+import { createClient } from '@supabase/supabase-js'
+import 'dotenv/config'
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl =
+  process.env.SUPABASE_URL
+
+const supabaseSecretKey =
+  process.env.SUPABASE_SECRET_KEY ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!supabaseUrl) {
+  throw new Error(
+    'Missing SUPABASE_URL in backend/.env'
+  )
+}
+
+if (!supabaseSecretKey) {
+  throw new Error(
+    'Missing SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY in backend/.env'
+  )
+}
 
 const supabase = createClient(
-  supabaseUrl || 'http://localhost:54321', 
-  supabaseServiceKey || 'mock-key'
-);
+  supabaseUrl,
+  supabaseSecretKey,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  }
+)
 
-// 🌟 FIX: Change module.exports to export default!
-export default supabase;
-console.log('✅ Supabase client initialized');
-console.log('URL loaded:', !!process.env.SUPABASE_URL);
+export default supabase
