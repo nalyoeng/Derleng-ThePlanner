@@ -2,8 +2,9 @@ import apiClient from './apiClient'
 
 export const destinationApi = {
   async getAll(params = {}) {
+    // Add '/api' before '/destinations'
     const response = await apiClient.get(
-      '/destinations',
+      '/api/destinations', 
       { params }
     )
 
@@ -11,8 +12,9 @@ export const destinationApi = {
   },
 
   async getById(destinationId) {
+    // Add '/api' before '/destinations'
     const response = await apiClient.get(
-      `/destinations/${destinationId}`
+      `/api/destinations/${destinationId}`
     )
 
     return response.data

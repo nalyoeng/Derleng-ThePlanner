@@ -2,13 +2,13 @@ import apiClient from './apiClient'
 
 export const profileApi = {
   async getMe() {
-    const response = await apiClient.get('/profile/me')
+    const response = await apiClient.get('api/profile/me')
     return response.data
   },
 
   async updateMe(profileData) {
     const response = await apiClient.patch(
-      '/profile/me',
+      '/api/profile/me',
       profileData
     )
 
