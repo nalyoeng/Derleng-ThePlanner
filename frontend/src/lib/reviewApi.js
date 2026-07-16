@@ -43,12 +43,4 @@ export const reviewApi = {
 
     return response.data
   },
-  async report(reviewId, reason) {
-  const response = await apiClient.post(
-    `/reviews/${reviewId}/report`,
-    { reason }
-  )
-
-  return response.data
-},
 }
