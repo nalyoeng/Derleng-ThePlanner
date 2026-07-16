@@ -11,6 +11,7 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 
+import { profileApi } from '../../lib/profileApi'
 import { supabase } from '../../lib/supabaseClient'
 
 const ALLOWED_TABS = [
@@ -136,6 +137,16 @@ function getFirstImage(place) {
   return ''
 }
 
+function createInitials(name) {
+  return String(name || 'User')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+}
+
 export default function ProfilePage({ user }) {
   const [searchParams, setSearchParams] =
     useSearchParams()
@@ -150,15 +161,19 @@ export default function ProfilePage({ user }) {
     : 'overview'
 
   const [profile, setProfile] = useState(null)
+
   const [profileLoading, setProfileLoading] =
     useState(true)
+
   const [profileError, setProfileError] =
     useState('')
 
   const [savedPlaces, setSavedPlaces] =
     useState([])
+
   const [savedLoading, setSavedLoading] =
     useState(true)
+
   const [savedError, setSavedError] =
     useState('')
 
@@ -172,6 +187,7 @@ export default function ProfilePage({ user }) {
       email: '',
       phone: '',
       bio: '',
+      avatar_url: '',
     })
 
   const onTabChange = (value) => {
@@ -180,6 +196,10 @@ export default function ProfilePage({ user }) {
     })
   }
 
+  /*
+   * Load profile through Express:
+   * GET /api/profile/me
+   */
   useEffect(() => {
     let active = true
 
@@ -196,52 +216,54 @@ export default function ProfilePage({ user }) {
         return
       }
 
-      setProfileLoading(true)
-      setProfileError('')
+      try {
+        setProfileLoading(true)
+        setProfileError('')
 
-      const {
-        data,
-        error,
-      } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          username,
-          full_name,
-          email,
-          initials,
-          phone,
-          bio,
-          avatar_url,
-          role
-        `)
-        .eq('id', user.id)
-        .single()
+        const result = await profileApi.getMe()
+        const data = result?.data
 
-      if (!active) return
+        if (!active) return
 
-      if (error) {
-        console.error('Profile error:', error)
+        if (!data) {
+          throw new Error(
+            'Profile information was not returned.'
+          )
+        }
+
+        setProfile(data)
+
+        setSettingsForm({
+          full_name: data.full_name || '',
+          username: data.username || '',
+          email:
+            data.email ||
+            user.email ||
+            '',
+          phone: data.phone || '',
+          bio: data.bio || '',
+          avatar_url: data.avatar_url || '',
+        })
+      } catch (error) {
+        if (!active) return
+
+        console.error(
+          'Load profile error:',
+          error
+        )
+
         setProfile(null)
-        setProfileError(error.message)
-        setProfileLoading(false)
-        return
+
+        setProfileError(
+          error.response?.data?.message ||
+            error.message ||
+            'Could not load profile.'
+        )
+      } finally {
+        if (active) {
+          setProfileLoading(false)
+        }
       }
-
-      setProfile(data)
-
-      setSettingsForm({
-        full_name: data.full_name || '',
-        username: data.username || '',
-        email:
-          data.email ||
-          user.email ||
-          '',
-        phone: data.phone || '',
-        bio: data.bio || '',
-      })
-
-      setProfileLoading(false)
     }
 
     loadProfile()
@@ -251,6 +273,10 @@ export default function ProfilePage({ user }) {
     }
   }, [user?.id, user?.email])
 
+  /*
+   * Saved places continue using the existing
+   * favorites table in Supabase.
+   */
   useEffect(() => {
     let active = true
 
@@ -265,57 +291,69 @@ export default function ProfilePage({ user }) {
         return
       }
 
-      setSavedLoading(true)
-      setSavedError('')
+      try {
+        setSavedLoading(true)
+        setSavedError('')
 
-      const {
-        data,
-        error,
-      } = await supabase
-        .from('favorites')
-        .select(`
-          destination_id,
-          destinations (
-            id,
-            name,
-            location,
-            category,
-            image_url,
-            images
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', {
-          ascending: false,
-        })
+        const {
+          data,
+          error,
+        } = await supabase
+          .from('favorites')
+          .select(`
+            destination_id,
+            created_at,
+            destinations (
+              id,
+              name,
+              location,
+              categories,
+              image_url
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', {
+            ascending: false,
+          })
 
-      if (!active) return
+        if (!active) return
 
-      if (error) {
+        if (error) {
+          throw error
+        }
+
+        const places = (data || [])
+          .map((item) => {
+            if (
+              Array.isArray(item.destinations)
+            ) {
+              return item.destinations[0]
+            }
+
+            return item.destinations
+          })
+          .filter(Boolean)
+
+        setSavedPlaces(places)
+      } catch (error) {
+        if (!active) return
+
         console.error(
           'Saved places error:',
           error
         )
+
         setSavedPlaces([])
-        setSavedError(error.message)
-        setSavedLoading(false)
-        return
+
+        setSavedError(
+          error.message ||
+            'Could not load saved places.'
+        )
+      } finally {
+        if (active) {
+          setSavedLoading(false)
+        }
       }
-
-      const places = (data || [])
-        .map((item) => {
-          if (
-            Array.isArray(item.destinations)
-          ) {
-            return item.destinations[0]
-          }
-
-          return item.destinations
-        })
-        .filter(Boolean)
-
-      setSavedPlaces(places)
-      setSavedLoading(false)
     }
 
     loadSavedPlaces()
@@ -354,6 +392,10 @@ export default function ProfilePage({ user }) {
     }))
   }
 
+  /*
+   * Save profile through Express:
+   * PATCH /api/profile/me
+   */
   const handleSaveChanges = async () => {
     if (!user?.id || saveState === 'saving') {
       return
@@ -369,79 +411,62 @@ export default function ProfilePage({ user }) {
       return
     }
 
-    const initials = fullName
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((word) => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
+    try {
+      setSaveState('saving')
+      setProfileError('')
 
-    setSaveState('saving')
-    setProfileError('')
+      const result =
+        await profileApi.updateMe({
+          full_name: fullName,
+          phone: settingsForm.phone.trim(),
+          bio: settingsForm.bio.trim(),
+          avatar_url:
+            settingsForm.avatar_url.trim() ||
+            null,
+        })
 
-    const {
-      data,
-      error,
-    } = await supabase
-      .from('profiles')
-      .update({
-        full_name: fullName,
-        phone: settingsForm.phone.trim(),
-        bio: settingsForm.bio.trim(),
-        initials,
-      })
-      .eq('id', user.id)
-      .select(`
-        id,
-        username,
-        full_name,
-        email,
-        initials,
-        phone,
-        bio,
-        avatar_url,
-        role
-      `)
-      .single()
+      const data = result?.data
 
-    if (error) {
+      if (!data) {
+        throw new Error(
+          'Updated profile information was not returned.'
+        )
+      }
+
+      setProfile(data)
+
+      setSettingsForm((previous) => ({
+        ...previous,
+        full_name: data.full_name || '',
+        username: data.username || '',
+        email:
+          data.email ||
+          user.email ||
+          '',
+        phone: data.phone || '',
+        bio: data.bio || '',
+        avatar_url: data.avatar_url || '',
+      }))
+
+      setSaveState('saved')
+
+      window.setTimeout(() => {
+        setSaveState('idle')
+      }, 2000)
+    } catch (error) {
       console.error(
         'Save profile error:',
         error
       )
-      setProfileError(error.message)
-      setSaveState('error')
-      return
-    }
 
-    const {
-      error: authError,
-    } = await supabase.auth.updateUser({
-      data: {
-        full_name: fullName,
-      },
-    })
-
-    if (authError) {
-      console.warn(
-        'Auth metadata update failed:',
-        authError
+      setProfileError(
+        error.response?.data?.message ||
+          error.message ||
+          'Could not update profile.'
       )
+
+      setSaveState('error')
     }
-
-    setProfile(data)
-    setSettingsForm((previous) => ({
-      ...previous,
-      full_name: data.full_name || '',
-      phone: data.phone || '',
-      bio: data.bio || '',
-    }))
-    setSaveState('saved')
-
-    window.setTimeout(() => {
-      setSaveState('idle')
-    }, 2000)
   }
 
   const displayName =
@@ -456,13 +481,7 @@ export default function ProfilePage({ user }) {
 
   const displayInitials =
     profile?.initials ||
-    displayName
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((word) => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
+    createInitials(displayName)
 
   const displayBio =
     profile?.bio ||
@@ -483,6 +502,7 @@ export default function ProfilePage({ user }) {
       <div className="h-32 bg-gradient-to-r from-emerald-900 via-emerald-700 to-emerald-400" />
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        {/* Profile header */}
         <div className="-mt-12 flex flex-col gap-6 rounded-[2rem] border border-emerald-100 bg-white p-6 shadow-sm sm:p-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
             {profile?.avatar_url ? (
@@ -530,10 +550,18 @@ export default function ProfilePage({ user }) {
           </button>
         </div>
 
+        {profileError &&
+          activeTab !== 'settings' && (
+            <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+              {profileError}
+            </div>
+          )}
+
         <p className="mt-6 max-w-3xl text-sm leading-8 text-gray-600">
           {displayBio}
         </p>
 
+        {/* Statistics */}
         <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {stats.map((item) => (
             <div
@@ -551,6 +579,7 @@ export default function ProfilePage({ user }) {
           ))}
         </div>
 
+        {/* Tabs */}
         <div className="mt-8 flex flex-wrap gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm">
           <TabButton
             active={activeTab === 'overview'}
@@ -588,6 +617,7 @@ export default function ProfilePage({ user }) {
           />
         </div>
 
+        {/* Overview tab */}
         {activeTab === 'overview' && (
           <div className="mt-6 space-y-3">
             {tripItems
@@ -625,6 +655,7 @@ export default function ProfilePage({ user }) {
           </div>
         )}
 
+        {/* Trips tab */}
         {activeTab === 'trips' && (
           <div className="mt-6 space-y-3">
             {tripItems.map((item) => {
@@ -660,6 +691,7 @@ export default function ProfilePage({ user }) {
           </div>
         )}
 
+        {/* Friends tab */}
         {activeTab === 'friends' && (
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {friends.map((friend) => (
@@ -691,6 +723,7 @@ export default function ProfilePage({ user }) {
           </div>
         )}
 
+        {/* Saved places tab */}
         {activeTab === 'saved' && (
           <div className="mt-6">
             {savedLoading ? (
@@ -699,8 +732,7 @@ export default function ProfilePage({ user }) {
               </p>
             ) : savedError ? (
               <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
-                Could not load saved places:
-                {' '}
+                Could not load saved places:{' '}
                 {savedError}
               </div>
             ) : savedPlaces.length === 0 ? (
@@ -753,11 +785,18 @@ export default function ProfilePage({ user }) {
                           {place.location}
                         </p>
 
-                        {place.category && (
-                          <span className="mt-3 inline-block rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                            {place.category}
-                          </span>
-                        )}
+                        {Array.isArray(
+                          place.categories
+                        ) &&
+                          place.categories.length >
+                            0 && (
+                            <span className="mt-3 inline-block rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                              {
+                                place
+                                  .categories[0]
+                              }
+                            </span>
+                          )}
                       </div>
                     </Link>
                   )
@@ -767,6 +806,7 @@ export default function ProfilePage({ user }) {
           </div>
         )}
 
+        {/* Settings tab */}
         {activeTab === 'settings' && (
           <div className="mt-6 space-y-4">
             <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -859,6 +899,26 @@ export default function ProfilePage({ user }) {
                     placeholder="+855 12 345 678"
                     className="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-emerald-500"
                   />
+                </label>
+
+                <label className="text-sm text-gray-600 md:col-span-2">
+                  <span className="mb-2 block font-medium">
+                    Profile picture URL
+                  </span>
+
+                  <input
+                    type="url"
+                    value={settingsForm.avatar_url}
+                    onChange={updateField(
+                      'avatar_url'
+                    )}
+                    placeholder="https://example.com/avatar.jpg"
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-emerald-500"
+                  />
+
+                  <p className="mt-1 text-xs text-gray-400">
+                    Paste a direct link to your profile image.
+                  </p>
                 </label>
 
                 <label className="text-sm text-gray-600 md:col-span-2">
