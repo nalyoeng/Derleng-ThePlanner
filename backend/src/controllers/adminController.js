@@ -1,5 +1,16 @@
 import supabase from '../config/supabase.js';
-
+import fs   from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+ 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
+const BACKUP_DIR = path.join(__dirname, '../../../backups');
+ 
+if (!fs.existsSync(BACKUP_DIR)) {
+  fs.mkdirSync(BACKUP_DIR, { recursive: true });
+}
+ 
 // ═══════════════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════
@@ -508,6 +519,159 @@ export const getAllRestrictions = async (req, res) => {
     );
 
     return res.status(200).json({ restrictions: enrichedRestrictions });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+// ═══════════════════════════════════════════════════════════════
+// BACKUP & RECOVER
+// ═══════════════════════════════════════════════════════════════
+ 
+// POST /api/admin/backup — create a new backup
+export const createBackup = async (req, res) => {
+  try {
+  const [
+  { data: profiles },
+  { data: destinations },
+  { data: reports },
+  { data: restrictions },
+  { data: audit_log },
+  { data: groups },
+  { data: group_members },
+  { data: messages },
+  { data: activities },
+  { data: schedule_days },
+  { data: reviews },
+  { data: follows },
+  { data: favorites },
+  { data: poll_options },
+  { data: poll_votes },
+] = await Promise.all([
+  supabase.from('profiles').select('*'),
+  supabase.from('destinations').select('*'),
+  supabase.from('reports').select('*'),
+  supabase.from('restrictions').select('*'),
+  supabase.from('audit_log').select('*'),
+  supabase.from('groups').select('*'),
+  supabase.from('group_members').select('*'),
+  supabase.from('messages').select('*'),
+  supabase.from('activities').select('*'),
+  supabase.from('schedule_days').select('*'),
+  supabase.from('reviews').select('*'),
+  supabase.from('follows').select('*'),
+  supabase.from('favorites').select('*'),
+  supabase.from('poll_options').select('*'),
+  supabase.from('poll_votes').select('*'),
+]);
+
+const backup = {
+  created_at: new Date().toISOString(),
+  created_by: req.profile.email,
+  tables: {
+    profiles, destinations, reports, restrictions, audit_log,
+    groups, group_members, messages, activities, schedule_days,
+    reviews, follows, favorites, poll_options, poll_votes,
+  },
+};
+ 
+    const now      = new Date();
+    const pad      = (n) => String(n).padStart(2, '0');
+    const filename = `backup_${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}.json`;
+    const filepath = path.join(BACKUP_DIR, filename);
+ 
+    fs.writeFileSync(filepath, JSON.stringify(backup, null, 2));
+ 
+    const stats  = fs.statSync(filepath);
+    const sizeKB = (stats.size / 1024).toFixed(1);
+ 
+    return res.status(201).json({
+      message:    'Backup created successfully.',
+      filename,
+      size:       `${sizeKB} KB`,
+      created_at: backup.created_at,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+ 
+// GET /api/admin/backups — get list of all backup files
+export const getBackups = async (req, res) => {
+  try {
+    if (!fs.existsSync(BACKUP_DIR)) {
+      return res.status(200).json({ backups: [] });
+    }
+ 
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.endsWith('.json'))
+      .map(filename => {
+        const filepath = path.join(BACKUP_DIR, filename);
+        const stats    = fs.statSync(filepath);
+        const sizeKB   = (stats.size / 1024).toFixed(1);
+        const parts    = filename.replace('backup_', '').replace('.json', '').split('_');
+        const date     = parts[0];
+        const timePart = parts[1]?.replace('-', ':') || '';
+ 
+        return {
+          filename,
+          date:       new Date(date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+          time:       timePart,
+          size:       `${sizeKB} KB`,
+          created_at: stats.birthtime,
+        };
+      })
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+ 
+    return res.status(200).json({ backups: files });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+ 
+// POST /api/admin/recover — restore from a backup file
+export const restoreBackup = async (req, res) => {
+  try {
+    const { filename } = req.body;
+ 
+    if (!filename) {
+      return res.status(400).json({ error: 'Filename is required.' });
+    }
+ 
+    const filepath = path.join(BACKUP_DIR, filename);
+ 
+    if (!fs.existsSync(filepath)) {
+      return res.status(404).json({ error: 'Backup file not found.' });
+    }
+ 
+    const raw    = fs.readFileSync(filepath, 'utf-8');
+    const backup = JSON.parse(raw);
+ 
+    if (backup.tables.destinations?.length > 0) {
+      const { error } = await supabase
+        .from('destinations')
+        .upsert(backup.tables.destinations, { onConflict: 'id' });
+      if (error) throw new Error(`Destinations restore failed: ${error.message}`);
+    }
+ 
+    if (backup.tables.restrictions?.length > 0) {
+      const { error } = await supabase
+        .from('restrictions')
+        .upsert(backup.tables.restrictions, { onConflict: 'id' });
+      if (error) throw new Error(`Restrictions restore failed: ${error.message}`);
+    }
+ 
+    await supabase.from('audit_log').insert({
+      target_user_id: null,
+      changed_by_id:  req.profile.id,
+      old_role:       null,
+      new_role:       null,
+      action:         `database_restored_from_${filename}`,
+    });
+ 
+    return res.status(200).json({
+      message:     `Database restored from "${filename}" successfully.`,
+      restored_at: new Date().toISOString(),
+    });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

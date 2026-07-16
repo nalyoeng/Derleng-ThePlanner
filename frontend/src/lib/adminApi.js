@@ -111,3 +111,23 @@ export const fetchAllRestrictions = async () => {
   const res = await axios.get(`${BASE_URL}/api/admin/restrictions`, { headers });
   return res.data.restrictions;
 };
+// ═══════════════════════════════════════════════════════════════
+// BACKUP & RECOVER
+// ═══════════════════════════════════════════════════════════════
+export const fetchBackups = async () => {
+  const headers = await getAuthHeader();
+  const res = await axios.get(`${BASE_URL}/api/admin/backups`, { headers });
+  return res.data.backups;
+};
+
+export const createBackup = async () => {
+  const headers = await getAuthHeader();
+  const res = await axios.post(`${BASE_URL}/api/admin/backup`, {}, { headers });
+  return res.data;
+};
+
+export const restoreBackup = async (filename) => {
+  const headers = await getAuthHeader();
+  const res = await axios.post(`${BASE_URL}/api/admin/recover`, { filename }, { headers });
+  return res.data;
+};

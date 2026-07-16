@@ -6,7 +6,7 @@ import 'dotenv/config';
 // Import Routes
 import pollRoutes from './routes/pollRoutes.js';
 import tripRoutes from './routes/tripRoutes.js';
-// import adminRoutes from './routes/adminRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import friendRoutes from './routes/friendRoutes.js';
 import followRoutes from './routes/followRoutes.js'; 
 
@@ -23,9 +23,9 @@ app.get('/', (req, res) => {
 });
 
 // Routes
-app.use('/api/polls',   pollRoutes);
-app.use('/api/trips',   tripRoutes);
-app.use('/api/admin',   adminRoutes);
+app.use('/api/polls', pollRoutes);
+app.use('/api/trips', tripRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/follow', followRoutes);
 
