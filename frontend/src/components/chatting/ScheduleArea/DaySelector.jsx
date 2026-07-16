@@ -9,11 +9,19 @@ export default function DaySelector({
   onOpenEditModal, 
   onDeleteDay      
 }) {
+  
+  // 🌟 NEW: Sort the days array chronologically by comparing their date strings
+  const chronologicallySortedDays = [...days].sort((a, b) => {
+    return new Date(a.date) - new Date(b.date);
+  });
+
   return (
     <div className="flex items-center gap-3 overflow-x-auto py-2 font-sans scrollbar-none">
-      {/* Map Active Days Tabs */}
-      {days.map((day) => {
+      
+      {/* 🌟 NEW: Map over the sorted array instead of the raw database array */}
+      {chronologicallySortedDays.map((day, index) => {
         const isActive = activeDay === day.id;
+        
         return (
           <div 
             key={day.id} 
@@ -24,14 +32,13 @@ export default function DaySelector({
             }`}
             onClick={() => onSelectDay(day.id)}
           >
-            {/* 🌟 FIXED: Added z-10 and replaced bg-inherit with an explicit background color variant to prevent parent color masking */}
             <div className={`absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pl-1 rounded-bl ${
               isActive ? 'bg-emerald-50' : 'bg-white'
             }`}>
               <button
                 type="button"
                 onClick={(e) => {
-                  e.stopPropagation(); // Prevents selecting the day while trying to edit it
+                  e.stopPropagation(); 
                   if (onOpenEditModal) onOpenEditModal(day);
                 }}
                 className="p-1 text-gray-400 hover:text-emerald-600 rounded-md hover:bg-gray-100 transition-colors"
@@ -41,7 +48,7 @@ export default function DaySelector({
               <button
                 type="button"
                 onClick={(e) => {
-                  e.stopPropagation(); // Prevents selecting the day while trying to delete it
+                  e.stopPropagation(); 
                   if (onDeleteDay) onDeleteDay(day.id);
                 }}
                 className="p-1 text-gray-400 hover:text-rose-600 rounded-md hover:bg-gray-100 transition-colors"
@@ -51,9 +58,10 @@ export default function DaySelector({
             </div>
 
             <span className={`block text-[11px] uppercase tracking-wider font-bold ${isActive ? 'text-emerald-700' : 'text-gray-400'}`}>
-              Day {day.id}
+              {/* Because the array is sorted by date, index + 1 is guaranteed to be chronologically accurate */}
+              Day {index + 1}
             </span>
-            <span className="block text-sm font-bold text-gray-900 mt-0.5">{day.title}</span>
+            <span className="block text-sm font-bold text-gray-900 mt-0.5 pr-8 truncate">{day.title}</span>
             <span className="block text-[10px] text-gray-400 mt-0.5">{day.date}</span>
           </div>
         );
@@ -65,7 +73,7 @@ export default function DaySelector({
         onClick={() => {
           if (onOpenModal) onOpenModal();
         }}
-        className="h-14 px-4 rounded-2xl border border-dashed border-gray-200 hover:border-emerald-400 text-gray-400 hover:text-emerald-700 text-xs font-semibold flex items-center gap-1.5 transition-colors bg-white/50 cursor-pointer h-[68px] shrink-0"
+        className="h-14 px-4 rounded-2xl border border-dashed border-gray-200 hover:border-emerald-400 text-gray-400 hover:text-emerald-700 text-xs font-semibold flex items-center gap-1.5 transition-colors bg-white/50 cursor-pointer shrink-0"
       >
         <Plus className="w-3.5 h-3.5" />
         <span>Add Day</span>

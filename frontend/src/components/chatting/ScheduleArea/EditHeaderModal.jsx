@@ -3,55 +3,48 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 export default function EditHeaderModal({ isOpen, onClose, currentData, onUpdateHeader }) {
-  const [title, setTitle] = useState('');
+  const [name, setName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [planner, setPlanner] = useState('');
-  const [cost, setCost] = useState('');
+  const [estimateCost, setEstimateCost] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Sync state whenever the modal opens with fresh data
-  useEffect(() => {
-    if (isOpen) {
-      setTitle(currentData?.title || '');
-      setPlanner(currentData?.planner || '');
-      setCost(currentData?.cost || '');
-
-      // Parse dates if they exist in format "YYYY-MM-DD to YYYY-MM-DD"
-      if (currentData?.dates && currentData.dates.includes(' to ')) {
-        const [start, end] = currentData.dates.split(' to ');
-        setStartDate(start || '');
-        setEndDate(end || '');
-      } else {
-        setStartDate('');
-        setEndDate('');
-      }
+  // Sync state variables cleanly whenever the modal opens with fresh data
+  // Inside EditHeaderModal.jsx, update the useEffect:
+useEffect(() => {
+  if (isOpen && currentData) {
+    setName(currentData.name || '');
+    setEstimateCost(currentData.estimate_cost || ''); // Match DB column name
+    
+    if (currentData.dates && currentData.dates.includes(' to ')) {
+      const [start, end] = currentData.dates.split(' to ');
+      setStartDate(start || '');
+      setEndDate(end || '');
     }
-  }, [currentData, isOpen]);
+  }
+}, [currentData, isOpen]);
+
+// Update handleSubmit:
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setIsSaving(true);
+  const formattedDates = startDate && endDate ? `${startDate} to ${endDate}` : '';
+
+  try {
+    await onUpdateHeader({ 
+      name: name, // Matches DB column
+      dates: formattedDates, 
+      estimate_cost: estimateCost ? parseFloat(estimateCost) : 0.00 // Matches DB column
+    });
+    onClose();
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   if (!isOpen) return null;
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSaving(true);
-
-    // Combine start and end dates into a single string for your database column
-    const formattedDates = startDate && endDate ? `${startDate} to ${endDate}` : startDate || endDate || '';
-
-    try {
-      await onUpdateHeader({ 
-        title, 
-        dates: formattedDates, 
-        planner, 
-        cost: cost ? parseFloat(cost) : '' 
-      });
-      onClose();
-    } catch (err) {
-      console.error("Failed to update trip details:", err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   return createPortal(
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 font-sans animate-fadeIn">
@@ -74,13 +67,13 @@ export default function EditHeaderModal({ isOpen, onClose, currentData, onUpdate
 
         {/* Input Forms */}
         <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-3.5">
-          {/* Trip Title */}
+          {/* Trip Title / Group Name */}
           <div>
-            <label className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1 px-1">Trip Title</label>
+            <label className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1 px-1">Trip Name</label>
             <input 
               type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               disabled={isSaving}
               className="w-full h-11 px-4 rounded-xl bg-white border border-gray-200 text-xs text-gray-700 focus:outline-none focus:border-[#114B32] transition-all shadow-sm disabled:bg-gray-50"
               required
@@ -102,7 +95,7 @@ export default function EditHeaderModal({ isOpen, onClose, currentData, onUpdate
               <input 
                 type="date"
                 value={endDate}
-                min={startDate} // Prevents choosing an end date before the start date
+                min={startDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 disabled={isSaving}
                 className="w-full h-11 px-3 rounded-xl bg-white border border-gray-200 text-xs text-gray-700 focus:outline-none focus:border-[#114B32] transition-all shadow-sm disabled:bg-gray-50"
@@ -111,36 +104,20 @@ export default function EditHeaderModal({ isOpen, onClose, currentData, onUpdate
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {/* Leader / Admin */}
-            <div>
-              <label className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1 px-1">Leader / Admin</label>
-              <input 
-                type="text"
-                placeholder="Name"
-                value={planner}
-                onChange={(e) => setPlanner(e.target.value)}
-                disabled={isSaving}
-                className="w-full h-11 px-4 rounded-xl bg-white border border-gray-200 text-xs text-gray-700 focus:outline-none focus:border-[#114B32] transition-all shadow-sm disabled:bg-gray-50"
-                required
-              />
-            </div>
-
-            {/* Est. Cost (Numbers Only) */}
-            <div>
-              <label className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1 px-1">Est. Cost ($)</label>
-              <input 
-                type="number"
-                min="0"
-                step="any"
-                placeholder="e.g., 250"
-                value={cost}
-                onChange={(e) => setCost(e.target.value)}
-                disabled={isSaving}
-                className="w-full h-11 px-4 rounded-xl bg-white border border-gray-200 text-xs text-gray-700 focus:outline-none focus:border-[#114B32] transition-all shadow-sm disabled:bg-gray-50"
-                required
-              />
-            </div>
+          {/* Estimated Cost (Numbers Only) */}
+          <div>
+            <label className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1 px-1">Est. Cost ($)</label>
+            <input 
+              type="number"
+              min="0"
+              step="any"
+              placeholder="e.g., 250"
+              value={estimateCost}
+              onChange={(e) => setEstimateCost(e.target.value)}
+              disabled={isSaving}
+              className="w-full h-11 px-4 rounded-xl bg-white border border-gray-200 text-xs text-gray-700 focus:outline-none focus:border-[#114B32] transition-all shadow-sm disabled:bg-gray-50"
+              required
+            />
           </div>
 
           {/* Action Control Buttons */}

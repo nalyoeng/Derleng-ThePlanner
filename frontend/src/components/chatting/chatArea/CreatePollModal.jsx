@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Plus, Trash2 } from 'lucide-react';
+import { supabase } from '../../../supabaseClient.js'; // 🌟 Make sure your supabase client path is correct
 
-export default function CreatePollModal({ isOpen, onClose, onCreatePoll }) {
+export default function CreatePollModal({ isOpen, onClose, groupId, onPollCreated }) {
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState(['', '']); // Starts with 2 options minimum
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -26,15 +28,60 @@ export default function CreatePollModal({ isOpen, onClose, onCreatePoll }) {
     setOptions(updated);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const validOptions = options.filter(opt => opt.trim() !== '');
-    if (!question.trim() || validOptions.length < 2) return;
+    if (!question.trim() || validOptions.length < 2 || !groupId) return;
 
-    onCreatePoll(question, validOptions);
-    setQuestion('');
-    setOptions(['', '']);
-    onClose();
+    try {
+      setIsSubmitting(true);
+
+      // 1. Get the current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not logged in');
+
+      // 2. Insert into 'messages' table as a 'poll' type text entry
+      const { data: messageData, error: messageError } = await supabase
+        .from('messages')
+        .insert([
+          {
+            group_id: groupId,
+            sender_id: user.id,
+            text: question.trim(), // The poll question acts as the message text context
+            type: 'poll'
+          }
+        ])
+        .select()
+        .single();
+
+      if (messageError) throw messageError;
+
+      // 3. Prepare options data array matching the generated message ID
+      const optionsToInsert = validOptions.map(optText => ({
+        message_id: messageData.id,
+        option_text: optText.trim()
+      }));
+
+      // 4. Insert records bulk-style into the brand new relational 'poll_options' table
+      const { error: optionsError } = await supabase
+        .from('poll_options')
+        .insert(optionsToInsert);
+
+      if (optionsError) throw optionsError;
+
+      // 5. Trigger update hook in Chatpage if provided
+      if (onPollCreated) onPollCreated();
+
+      // Clear fields and shut modal window
+      setQuestion('');
+      setOptions(['', '']);
+      onClose();
+    } catch (err) {
+      console.error('Error creating poll:', err.message);
+      alert('Failed to post poll. Check console logs.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return createPortal(
@@ -49,7 +96,8 @@ export default function CreatePollModal({ isOpen, onClose, onCreatePoll }) {
           <button 
             type="button"
             onClick={onClose}
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-50 transition-colors cursor-pointer"
+            disabled={isSubmitting}
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50"
           >
             <X className="w-4 h-4" />
           </button>
@@ -66,6 +114,7 @@ export default function CreatePollModal({ isOpen, onClose, onCreatePoll }) {
               placeholder="Where should we eat dinner?"
               className="w-full h-11 px-4 rounded-xl bg-white border border-gray-200 text-xs text-gray-700 focus:outline-none focus:border-[#114B32] transition-all shadow-sm"
               required
+              disabled={isSubmitting}
             />
           </div>
 
@@ -81,12 +130,14 @@ export default function CreatePollModal({ isOpen, onClose, onCreatePoll }) {
                   placeholder={`Option ${index + 1}`}
                   className="flex-1 h-10 px-3 rounded-xl bg-white border border-gray-200 text-xs text-gray-700 focus:outline-none focus:border-[#114B32] transition-all shadow-sm"
                   required
+                  disabled={isSubmitting}
                 />
                 {options.length > 2 && (
                   <button
                     type="button"
                     onClick={() => handleRemoveOption(index)}
-                    className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                    disabled={isSubmitting}
+                    className="p-2 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -98,7 +149,8 @@ export default function CreatePollModal({ isOpen, onClose, onCreatePoll }) {
               <button
                 type="button"
                 onClick={handleAddOption}
-                className="mt-1 py-2 border border-dashed border-gray-300 rounded-xl text-[11px] font-bold text-gray-500 hover:text-[#114B32] hover:border-[#114B32]/30 flex items-center justify-center gap-1 transition-all cursor-pointer bg-white/50"
+                disabled={isSubmitting}
+                className="mt-1 py-2 border border-dashed border-gray-300 rounded-xl text-[11px] font-bold text-gray-500 hover:text-[#114B32] hover:border-[#114B32]/30 flex items-center justify-center gap-1 transition-all cursor-pointer bg-white/50 disabled:opacity-50"
               >
                 <Plus className="w-3 h-3" />
                 Add Option
@@ -111,15 +163,17 @@ export default function CreatePollModal({ isOpen, onClose, onCreatePoll }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 h-10 rounded-xl border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors bg-white shadow-sm cursor-pointer"
+              disabled={isSubmitting}
+              className="flex-1 h-10 rounded-xl border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors bg-white shadow-sm cursor-pointer disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 h-10 rounded-xl bg-[#114B32] hover:bg-[#0B3D25] text-xs font-semibold text-white shadow-sm transition-colors cursor-pointer"
+              disabled={isSubmitting}
+              className="flex-1 h-10 rounded-xl bg-[#114B32] hover:bg-[#0B3D25] text-xs font-semibold text-white shadow-sm transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center"
             >
-              Post Poll
+              {isSubmitting ? 'Posting...' : 'Post Poll'}
             </button>
           </div>
         </form>

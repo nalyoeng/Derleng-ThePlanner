@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { X, Image, UserPlus, Check } from 'lucide-react';
 
-export default function CreateGroupModal({ isOpen, onClose, onCreateGroup }) {
+// 🌟 Added currentUserId to props
+export default function CreateGroupModal({ isOpen, onClose, onCreateGroup, currentUserId }) {
   const [groupName, setGroupName] = useState('');
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [groupImage, setGroupImage] = useState(null);
@@ -10,12 +11,11 @@ export default function CreateGroupModal({ isOpen, onClose, onCreateGroup }) {
   
   const fileInputRef = useRef(null);
 
-  // 🌟 UPDATED: Mock data now contains real structural DB matching sequential IDs
   const friendList = [
-    { id: 2, name: 'Sophea', initials: 'SV' },
-    { id: 3, name: 'Dara', initials: 'DA' },
-    { id: 4, name: 'Bona', initials: 'BN' },
-    { id: 5, name: 'Sreyneang', initials: 'SN' }
+    { id: '22222222-2222-2222-2222-222222222222', name: 'Sophea', initials: 'SV' },
+    { id: '33333333-3333-3333-3333-333333333333', name: 'Dara', initials: 'DA' },
+    { id: '44444444-4444-4444-4444-444444444444', name: 'Bona', initials: 'BN' },
+    { id: '55555555-5555-5555-5555-555555555555', name: 'Sreyneang', initials: 'SN' }
   ];
 
   if (!isOpen) return null;
@@ -40,11 +40,11 @@ export default function CreateGroupModal({ isOpen, onClose, onCreateGroup }) {
     e.preventDefault();
     if (!groupName.trim()) return;
 
-    // Send data up to state handlers/database endpoints
+    // 🌟 Packages up data perfectly for your new Supabase database schema layout
     onCreateGroup({
       name: groupName.trim(),
-      imageFile: groupImage, // Raw file ready to upload via FormData object
-      // 🌟 NEW: Extracting clean user IDs for the pivot table save cycle
+      icon: '✈️', 
+      leader: currentUserId, // 👈 Identifies the creator as the group leader
       memberIds: selectedMembers.map(m => m.id) 
     });
 

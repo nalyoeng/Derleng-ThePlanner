@@ -1,48 +1,48 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 
-export default function AddActivityModal({ isOpen, onClose, onAddActivity, currentDayTitle }) {
+export default function AddActivityModal({ 
+  isOpen, 
+  onClose, 
+  onAddActivity, 
+  currentDayTitle, 
+  dayId,   // 👈 Link to day
+  groupId  // 👈 Link to group
+}) {
   const [category, setCategory] = useState('Activity');
   const [title, setTitle] = useState('');
-  
-  // 🕒 Time State Blocks
   const [hour, setHour] = useState('12');
   const [minute, setMinute] = useState('00');
   const [ampm, setAmpm] = useState('PM');
-
-  // 💵 Numeric-only Cost State
   const [costAmount, setCostAmount] = useState('');
-  
   const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
   const [link, setLink] = useState('');
 
+  // Add these missing arrays so your dropdowns work
+  const categories = ['Activity', 'Dining', 'Transit', 'Lodging', 'Sightseeing'];
+  const hoursList = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
+  const minutesList = ['00', '15', '30', '45'];
+
   if (!isOpen) return null;
 
-  const categories = ['Food', 'Sight', 'Transport', 'Stay', 'Activity'];
-  
-  // Helper generation arrays for layout selects
-  const hoursList = Array.from({ length: 12 }, (_, i) => String(i + 1));
-  const minutesList = Array.from({ length: 60 }, (_, i) => i < 10 ? `0${i}` : String(i));
-
-  // Restricts cost input field strictly to numeric digits
+  // Handler to force numeric-only input for the cost field
   const handleCostChange = (e) => {
-    const rawValue = e.target.value;
-    const cleanNumericDigits = rawValue.replace(/[^0-9]/g, '');
-    setCostAmount(cleanNumericDigits);
+    const val = e.target.value.replace(/[^0-9]/g, '');
+    setCostAmount(val);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || !dayId || !groupId) return;
 
-    // Formats into uniform schema string structure, e.g., "5:00 PM"
     const formattedTimeString = `${hour}:${minute} ${ampm}`;
-    
-    // Fallback display if zero or empty, else maps fixed currency sign safely
     const cleanCostString = costAmount ? `$${costAmount}` : 'Free';
 
+    // 🌟 Perfect match for your Supabase schema
     onAddActivity({
+      day_id: dayId,      
+      group_id: groupId,  
       type: category,
       title,
       time: formattedTimeString,
@@ -52,16 +52,14 @@ export default function AddActivityModal({ isOpen, onClose, onAddActivity, curre
       link: link.trim() || '#'
     });
 
-    // Reset fields
-    setCategory('Activity');
+    // Reset form for next time
     setTitle('');
-    setHour('12');
-    setMinute('00');
-    setAmpm('PM');
     setCostAmount('');
     setLocation('');
     setNotes('');
     setLink('');
+    setCategory('Activity');
+    
     onClose();
   };
 

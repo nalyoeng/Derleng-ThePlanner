@@ -1,5 +1,8 @@
-import React, { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from 'react'
+import {
+  useNavigate,
+  useParams,
+} from 'react-router-dom'
 import {
   ArrowLeft,
   Star,
@@ -7,109 +10,193 @@ import {
   Heart,
   Sunrise,
   MapPin,
-} from "lucide-react";
-import ReviewSection from "./ReviewSection";
+} from 'lucide-react'
+
+import ReviewSection from './ReviewSection'
+import { destinationApi } from '../lib/destinationApi'
 
 export default function DestinationPage({
-  destinationsList,
-  favorites,
-  onToggleFav,
+  favorites = new Set(),
+  onToggleFav = () => {},
   user,
 }) {
-  const { id } = useParams();
-  const navigate = useNavigate();
+  const { id } = useParams()
+  const navigate = useNavigate()
 
-  const [idx, setIdx] = useState(0);
+  const [dest, setDest] = useState(null)
+  const [idx, setIdx] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const dest = destinationsList?.find(
-    (item) => String(item.id) === String(id)
-  );
+  useEffect(() => {
+    const loadDestination = async () => {
+      try {
+        setLoading(true)
+        setError('')
 
- const isFavorite = favorites?.has(
-  String(dest?.id)
-)
+        const result =
+          await destinationApi.getById(id)
 
-  if (!dest) {
+        // Backend response:
+        // { success: true, data: destination }
+        setDest(result?.data ?? result ?? null)
+        setIdx(0)
+      } catch (error) {
+        console.error(
+          'Load destination error:',
+          error
+        )
+
+        setError(
+          error.response?.data?.message ||
+            'Could not load destination.'
+        )
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (id) {
+      loadDestination()
+    }
+  }, [id])
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-[#F9FAFB] flex flex-col items-center justify-center text-[#6B7280] gap-4">
-        <p>No destination data found.</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#F9FAFB]">
+        <p className="text-[#6B7280]">
+          Loading destination...
+        </p>
+      </div>
+    )
+  }
+
+  if (error || !dest) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#F9FAFB] text-[#6B7280]">
+        <p>
+          {error || 'No destination data found.'}
+        </p>
 
         <button
           type="button"
-          onClick={() => navigate("/")}
+          onClick={() => navigate('/')}
           className="text-sm font-semibold text-[#0F5132] underline"
         >
           Back to Explore
         </button>
       </div>
-    );
+    )
   }
 
+  const isFavorite =
+    typeof favorites?.has === 'function'
+      ? favorites.has(String(dest.id))
+      : false
+
+  const categories = Array.isArray(
+    dest.categories
+  )
+    ? dest.categories
+    : dest.category
+      ? [dest.category]
+      : []
+
   const images =
-    dest.images && dest.images.length > 0
+    Array.isArray(dest.images) &&
+    dest.images.length > 0
       ? dest.images
-      : [dest.img];
+      : dest.image_url
+        ? [dest.image_url]
+        : dest.img
+          ? [dest.img]
+          : [
+              'https://placehold.co/1200x700?text=Destination',
+            ]
+
+  const cost = dest.cost ?? dest.price ?? 0
+
+  const reviewCount =
+    dest.review_count ??
+    dest.reviews_count ??
+    dest.reviews ??
+    0
+
+  const rating = Number(dest.rating ?? 0)
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] text-[#111827] font-sans antialiased">
-      {/* Top header */}
-      <header className="sticky top-0 z-40 w-full bg-white border-b border-gray-100 px-4 py-4 md:px-8 flex items-center justify-between shadow-sm">
+    <div className="min-h-screen bg-[#F9FAFB] font-sans text-[#111827] antialiased">
+      {/* Header */}
+      <header className="sticky top-0 z-40 flex w-full items-center justify-between border-b border-gray-100 bg-white px-4 py-4 shadow-sm md:px-8">
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-sm font-semibold text-[#6B7280] hover:text-[#0F5132] transition-colors group"
+          className="group flex items-center gap-2 text-sm font-semibold text-[#6B7280] transition-colors hover:text-[#0F5132]"
         >
           <ArrowLeft
             size={16}
-            className="transform group-hover:-translate-x-0.5 transition-transform"
+            className="transition-transform group-hover:-translate-x-0.5"
           />
+
           <span>Back to Explore</span>
         </button>
 
-        <h1 className="hidden md:block font-serif font-bold text-lg text-[#111827]">
+        <h1 className="hidden font-serif text-lg font-bold text-[#111827] md:block">
           {dest.name}
         </h1>
 
         <button
           type="button"
           onClick={() => onToggleFav(dest.id)}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 border ${
+          className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
             isFavorite
-              ? "bg-[#F0FDF4] text-[#0F5132] border-[#34D399]"
-              : "bg-white text-[#111827] border-gray-200 hover:border-gray-300"
+              ? 'border-[#34D399] bg-[#F0FDF4] text-[#0F5132]'
+              : 'border-gray-200 bg-white text-[#111827] hover:border-gray-300'
           }`}
         >
           <Heart
             size={14}
-            fill={isFavorite ? "#0F5132" : "none"}
-            color={isFavorite ? "#0F5132" : "#111827"}
+            fill={
+              isFavorite ? '#0F5132' : 'none'
+            }
+            color={
+              isFavorite ? '#0F5132' : '#111827'
+            }
           />
 
-          <span>{isFavorite ? "Saved" : "Save to Trips"}</span>
+          <span>
+            {isFavorite ? 'Saved' : 'Save to Trips'}
+          </span>
         </button>
       </header>
 
       {/* Main layout */}
-      <main className="max-w-6xl mx-auto px-4 py-6 md:py-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <main className="mx-auto grid max-w-6xl grid-cols-1 gap-8 px-4 py-6 md:py-10 lg:grid-cols-3">
         {/* Left column */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
+        <div className="flex flex-col gap-6 lg:col-span-2">
           {/* Main image */}
-          <div className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm">
-            <div className="relative h-64 sm:h-96 w-full bg-gray-900">
+          <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+            <div className="relative h-64 w-full bg-gray-900 sm:h-96">
               <img
                 src={images[idx]}
-                className="w-full h-full object-cover"
                 alt={dest.name}
+                className="h-full w-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.src =
+                    'https://placehold.co/1200x700?text=Destination'
+                }}
               />
 
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
               <div className="absolute bottom-6 left-6 right-6 text-white">
-                <span className="inline-block text-xs uppercase tracking-wider font-bold text-[#34D399] mb-1">
-                  {dest.category} · {dest.location}
+                <span className="mb-1 inline-block text-xs font-bold uppercase tracking-wider text-[#34D399]">
+                  {categories.join(' · ') ||
+                    'Destination'}{' '}
+                  · {dest.location}
                 </span>
 
-                <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white font-serif">
+                <h2 className="font-serif text-2xl font-bold tracking-tight text-white sm:text-4xl">
                   {dest.name}
                 </h2>
               </div>
@@ -117,22 +204,26 @@ export default function DestinationPage({
 
             {/* Image thumbnails */}
             {images.length > 1 && (
-              <div className="p-4 bg-white border-t border-gray-50 flex gap-2 overflow-x-auto">
-                {images.map((img, i) => (
+              <div className="flex gap-2 overflow-x-auto border-t border-gray-50 bg-white p-4">
+                {images.map((image, imageIndex) => (
                   <button
-                    key={`${img}-${i}`}
+                    key={`${image}-${imageIndex}`}
                     type="button"
-                    onClick={() => setIdx(i)}
-                    className={`relative w-20 h-14 rounded-xl overflow-hidden shrink-0 border-2 transition-all ${
-                      i === idx
-                        ? "border-[#0F5132] scale-95 shadow-sm"
-                        : "border-transparent opacity-70 hover:opacity-100"
+                    onClick={() =>
+                      setIdx(imageIndex)
+                    }
+                    className={`relative h-14 w-20 shrink-0 overflow-hidden rounded-xl border-2 transition-all ${
+                      imageIndex === idx
+                        ? 'scale-95 border-[#0F5132] shadow-sm'
+                        : 'border-transparent opacity-70 hover:opacity-100'
                     }`}
                   >
                     <img
-                      src={img}
-                      className="w-full h-full object-cover"
-                      alt={`${dest.name} ${i + 1}`}
+                      src={image}
+                      alt={`${dest.name} ${
+                        imageIndex + 1
+                      }`}
+                      className="h-full w-full object-cover"
                     />
                   </button>
                 ))}
@@ -141,8 +232,8 @@ export default function DestinationPage({
           </div>
 
           {/* Destination details */}
-          <div className="bg-white rounded-3xl p-6 md:p-8 border border-gray-100 shadow-sm flex flex-col gap-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-gray-100">
+          <div className="flex flex-col gap-6 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm md:p-8">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 pb-6">
               <div className="flex flex-wrap items-center gap-6 text-sm">
                 <span className="flex items-center gap-1.5 font-bold text-gray-900">
                   <Star
@@ -151,37 +242,40 @@ export default function DestinationPage({
                     color="#E8B33D"
                   />
 
-                  <span>{dest.rating}</span>
+                  <span>{rating.toFixed(1)}</span>
 
-                  <span className="text-[#6B7280] font-medium">
+                  <span className="font-medium text-[#6B7280]">
                     (
-                    {dest.reviews >= 1000
-                      ? `${(dest.reviews / 1000).toFixed(1)}K`
-                      : dest.reviews}{" "}
+                    {reviewCount >= 1000
+                      ? `${(
+                          reviewCount / 1000
+                        ).toFixed(1)}K`
+                      : reviewCount}{' '}
                     reviews)
                   </span>
                 </span>
 
                 <span className="flex items-center gap-1 font-bold text-[#0F5132]">
                   <DollarSign size={15} />
-                  <span>${dest.price} / day</span>
+
+                  <span>${cost} / day</span>
                 </span>
               </div>
 
               <div className="flex flex-wrap gap-1.5">
-                {(dest.tags || []).map((tag) => (
+                {categories.map((category) => (
                   <span
-                    key={tag}
-                    className="text-xs font-semibold px-3 py-1 rounded-full bg-[#F0FDF4] text-[#0F5132]"
+                    key={category}
+                    className="rounded-full bg-[#F0FDF4] px-3 py-1 text-xs font-semibold text-[#0F5132]"
                   >
-                    {tag}
+                    {category}
                   </span>
                 ))}
               </div>
             </div>
 
             {dest.highlight && (
-              <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl text-sm font-semibold bg-[#F0FDF4] text-[#0F5132] border border-[#34D399]/20">
+              <div className="flex items-center gap-2.5 rounded-2xl border border-[#34D399]/20 bg-[#F0FDF4] px-4 py-3 text-sm font-semibold text-[#0F5132]">
                 <Sunrise
                   size={18}
                   className="text-[#34D399]"
@@ -192,17 +286,18 @@ export default function DestinationPage({
             )}
 
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[#6B7280] mb-2">
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-[#6B7280]">
                 About destination
               </h3>
 
-              <p className="text-sm md:text-base text-[#111827] leading-relaxed font-normal">
-                {dest.description}
+              <p className="text-sm font-normal leading-relaxed text-[#111827] md:text-base">
+                {dest.description ||
+                  'No description is available for this destination.'}
               </p>
             </div>
           </div>
 
-          {/* Real Supabase reviews */}
+          {/* Reviews from Express backend */}
           <ReviewSection
             destinationId={dest.id}
             user={user}
@@ -210,25 +305,25 @@ export default function DestinationPage({
         </div>
 
         {/* Right column */}
-        <div className="lg:col-span-1 flex flex-col gap-6">
-          <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm sticky top-24">
-            <h3 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider mb-3">
+        <div className="flex flex-col gap-6 lg:col-span-1">
+          <div className="sticky top-24 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+            <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[#6B7280]">
               Geographic Location
             </h3>
 
-            <div className="h-32 rounded-2xl border border-gray-100 relative overflow-hidden flex flex-col items-center justify-center text-center px-4 bg-[#F0FDF4]/30">
-              <div className="w-10 h-10 rounded-full bg-[#F0FDF4] flex items-center justify-center mb-2 border border-[#34D399]/20">
+            <div className="relative flex h-32 flex-col items-center justify-center overflow-hidden rounded-2xl border border-gray-100 bg-[#F0FDF4]/30 px-4 text-center">
+              <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full border border-[#34D399]/20 bg-[#F0FDF4]">
                 <MapPin
                   size={20}
                   className="text-[#0F5132]"
                 />
               </div>
 
-              <span className="text-xs font-bold text-[#0F5132] leading-snug">
-                {dest.mapLabel}
+              <span className="text-xs font-bold leading-snug text-[#0F5132]">
+                {dest.mapLabel || dest.location}
               </span>
 
-              <span className="text-[11px] text-[#6B7280] mt-0.5">
+              <span className="mt-0.5 text-[11px] text-[#6B7280]">
                 {dest.location}
               </span>
             </div>
@@ -236,5 +331,5 @@ export default function DestinationPage({
         </div>
       </main>
     </div>
-  );
+  )
 }

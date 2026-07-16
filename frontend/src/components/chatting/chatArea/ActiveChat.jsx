@@ -11,8 +11,15 @@ export default function ActiveChat({
   onSendMessage, 
   onOpenSchedule, 
   onUpdateGroup,
-  onCreatePoll, 
-  onCastVote    
+  onPollCreated,       // 🌟 Callback to fetch/reload messages list after a poll is made
+  onCastVote,
+  currentUserProfile,
+  onLeaveGroup,   
+  onDeleteGroup,  
+  friendsList = [],       
+  usersList = [],         
+  groupMembersTable = [], 
+  onInviteFriend          
 }) {
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isPollOpen, setIsPollOpen] = useState(false);
@@ -28,14 +35,14 @@ export default function ActiveChat({
     if (!name) return { backgroundColor: '#E5E7EB', color: '#374151' };
     
     const palettes = [
-      { bg: '#FEE2E2', text: '#991B1B' }, // Red
-      { bg: '#FEF3C7', text: '#92400E' }, // Amber
-      { bg: '#D1FAE5', text: '#065F46' }, // Emerald
-      { bg: '#DBEAFE', text: '#1E40AF' }, // Blue
-      { bg: '#E0E7FF', text: '#3730A3' }, // Indigo
-      { bg: '#F3E8FF', text: '#6B21A8' }, // Purple
-      { bg: '#FCE7F3', text: '#9D174D' }, // Pink
-      { bg: '#E0F2FE', text: '#0369A1' }, // Sky
+      { bg: '#FEE2E2', text: '#991B1B' }, 
+      { bg: '#FEF3C7', text: '#92400E' }, 
+      { bg: '#D1FAE5', text: '#065F46' }, 
+      { bg: '#DBEAFE', text: '#1E40AF' }, 
+      { bg: '#E0E7FF', text: '#3730A3' }, 
+      { bg: '#F3E8FF', text: '#6B21A8' }, 
+      { bg: '#FCE7F3', text: '#9D174D' }, 
+      { bg: '#E0F2FE', text: '#0369A1' }, 
     ];
     
     let hash = 0;
@@ -68,7 +75,6 @@ export default function ActiveChat({
           className="flex items-center gap-3 text-left hover:opacity-80 transition-opacity p-1 -m-1 rounded-xl focus:outline-none cursor-pointer"
           title="View Group Roster Info"
         >
-          {/* 🌟 NEW DYNAMIC TEXT AVATAR WITH CONSISTENT GENERATED COLOR */}
           <div 
             style={avatarStyle} 
             className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm select-none tracking-wider shrink-0"
@@ -105,7 +111,7 @@ export default function ActiveChat({
             >
               {!msg.isMe && (
                 <div className="w-6 h-6 rounded-full bg-emerald-100 text-[#0F5132] text-[9px] font-bold flex items-center justify-center shrink-0 shadow-sm select-none">
-                  {msg.initials}
+                  {msg.initials || '?'}
                 </div>
               )}
               
@@ -122,50 +128,47 @@ export default function ActiveChat({
                       <BarChart3 className="w-3.5 h-3.5" />
                       <span>Workspace Group Poll</span>
                     </div>
-                    <h4 className="text-xs font-bold text-gray-800 mb-3 leading-snug">{msg.pollData?.question}</h4>
                     
+                    <h4 className="text-xs font-bold text-gray-800 mb-3 leading-snug">{msg.text}</h4>
+                    
+                    {/* SAFETY CHECK: Ensure pollOptions exists before mapping */}
                     <div className="flex flex-col gap-2">
-                      {msg.pollData?.options.map((opt) => {
-                        const totalVotes = msg.pollData.options.reduce((sum, o) => sum + (o.votes?.length || 0), 0);
-                        const percentage = totalVotes > 0 ? Math.round(((opt.votes?.length || 0) / totalVotes) * 100) : 0;
-                        const hasVoted = opt.votes?.includes("ME");
+                      {msg.pollOptions && msg.pollOptions.length > 0 ? (
+                        msg.pollOptions.map((opt) => {
+                          const totalVotes = msg.pollOptions.reduce((sum, o) => sum + (o.votesCount || 0), 0);
+                          const percentage = totalVotes > 0 ? Math.round((opt.votesCount / totalVotes) * 100) : 0;
+                          const hasVoted = opt.hasVotedByMe;
 
-                        return (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => onCastVote?.(msg.id, opt.id)}
-                            className={`w-full text-left rounded-xl p-2.5 border text-xs transition-all relative overflow-hidden group/opt cursor-pointer ${
-                              hasVoted ? 'border-[#34D399] bg-[#F0FDF4]/40' : 'border-gray-100 bg-gray-50/50 hover:bg-gray-50'
-                            }`}
-                          >
-                            <div 
-                              className="absolute top-0 left-0 bottom-0 bg-emerald-500/5 transition-all duration-500 ease-out pointer-events-none" 
-                              style={{ width: `${percentage}%` }}
-                            />
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => onCastVote?.(msg.id, opt.id)}
+                              className={`w-full text-left rounded-xl p-2.5 border text-xs transition-all relative overflow-hidden group/opt cursor-pointer ${
+                                hasVoted ? 'border-[#34D399] bg-[#F0FDF4]/40' : 'border-gray-100 bg-gray-50/50 hover:bg-gray-50'
+                              }`}
+                            >
+                              <div 
+                                className="absolute top-0 left-0 bottom-0 bg-emerald-500/5 transition-all duration-500 ease-out pointer-events-none" 
+                                style={{ width: `${percentage}%` }}
+                              />
 
-                            <div className="relative z-10 flex flex-col gap-1">
-                              <div className="flex justify-between items-center font-semibold text-gray-700">
-                                <span className="truncate pr-2">{opt.text}</span>
-                                <span className="text-[10px] text-gray-400 font-bold shrink-0">{percentage}%</span>
-                              </div>
-                              
-                              {opt.votes?.length > 0 && (
-                                <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                                  {opt.votes.map((voter, vi) => (
-                                    <span key={vi} className="text-[8px] px-1.5 py-0.5 font-bold rounded bg-white border border-gray-100 shadow-2xs text-gray-500 uppercase select-none animate-scaleIn">
-                                      {voter}
-                                    </span>
-                                  ))}
+                              <div className="relative z-10 flex flex-col gap-1">
+                                <div className="flex justify-between items-center font-semibold text-gray-700">
+                                  <span className="truncate pr-2">{opt.option_text}</span>
+                                  <span className="text-[10px] text-gray-400 font-bold shrink-0">{percentage}% ({opt.votesCount})</span>
                                 </div>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })}
+                              </div>
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <p className="text-[10px] text-gray-400 italic">No options loaded yet...</p>
+                      )}
                     </div>
                   </div>
                 ) : (
+                  // Standard text message rendering
                   <div className={`p-3 py-2.5 rounded-2xl text-xs font-medium shadow-sm leading-relaxed break-all whitespace-pre-wrap w-fit max-w-full ${
                     msg.isMe 
                       ? 'bg-[#114B32] text-white rounded-br-none ml-auto' 
@@ -223,24 +226,32 @@ export default function ActiveChat({
             disabled={!messageInput.trim()}
             className="p-2 rounded-xl bg-[#0F5132] hover:bg-[#0B3D25] disabled:opacity-30 text-white shadow-sm transition-all flex items-center justify-center cursor-pointer"
           >
+            <Paperclip className="w-4 h-4 hidden" /> {/* Hidden visual placeholder balance */}
             <Send className="w-4 h-4" />
           </button>
         </form>
       </div>
 
+      {/* 4. Sub-Modals Layout Directory Mapping */}
       <GroupInfoModal 
         isOpen={isInfoOpen}
         onClose={() => setIsInfoOpen(false)}
         activeGroup={activeGroup}
         onUpdateGroup={onUpdateGroup}
+        onLeaveGroup={onLeaveGroup}
+        onDeleteGroup={onDeleteGroup}
+        friendsList={friendsList}
+        usersList={usersList}
+        groupMembersTable={groupMembersTable}
+        onInviteFriend={onInviteFriend}
       />
 
       <CreatePollModal 
-        isOpen={isPollOpen}
-        onClose={() => setIsPollOpen(false)}
-        onCreatePoll={onCreatePoll}
+        isOpen={isPollOpen} 
+        onClose={() => setIsPollOpen(false)} 
+        groupId={activeGroup?.id} 
+        onPollCreated={onPollCreated} 
       />
-
     </div>
   );
 }
