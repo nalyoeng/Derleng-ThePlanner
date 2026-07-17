@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Paperclip, BarChart3, Send, Calendar } from 'lucide-react';
 import GroupInfoModal from './GroupInfoModal';
 import CreatePollModal from './CreatePollModal';
+import { useNavigate } from 'react-router-dom';
 
 export default function ActiveChat({ 
   activeGroup, 
@@ -11,9 +12,8 @@ export default function ActiveChat({
   onSendMessage, 
   onOpenSchedule, 
   onUpdateGroup,
-  onPollCreated,       // 🌟 Callback to fetch/reload messages list after a poll is made
+  onPollCreated,   
   onCastVote,
-  currentUserProfile,
   onLeaveGroup,   
   onDeleteGroup,  
   friendsList = [],       
@@ -21,6 +21,8 @@ export default function ActiveChat({
   groupMembersTable = [], 
   onInviteFriend          
 }) {
+
+  const navigate = useNavigate();
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isPollOpen, setIsPollOpen] = useState(false);
   const messagesEndRef = useRef(null);
@@ -93,7 +95,11 @@ export default function ActiveChat({
 
         <button 
           type="button"
-          onClick={onOpenSchedule}
+          onClick={() => {
+            // If you need to run original logic AND navigate, do both here:
+            if (onOpenSchedule) onOpenSchedule(); 
+            navigate(`/chat/${activeGroup?.id}/days`);
+          }}
           className="p-2 rounded-xl text-gray-400 hover:text-[#0F5132] hover:bg-[#F0FDF4] border border-transparent hover:border-[#34D399]/20 transition-all shadow-none duration-200 cursor-pointer"
           title="Schedule Event"
         >

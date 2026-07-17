@@ -20,14 +20,14 @@ export const getAllUsers = async (req, res) => {
 
 
     if (error) {
-      console.error('❌ Supabase Error:', error);
+      console.error('Supabase Error:', error);
       return res.status(400).json({ error: error.message });
     }
 
-    console.log(`✅ Successfully fetched ${data?.length || 0} users`);
+    console.log(`Successfully fetched ${data?.length || 0} users`);
     return res.status(200).json({ users: data });
   } catch (err) {
-    console.error('❌ Server Error in getAllUsers:', err);
+    console.error(' Server Error in getAllUsers:', err);
 
     return res.status(500).json({ error: err.message });
   }

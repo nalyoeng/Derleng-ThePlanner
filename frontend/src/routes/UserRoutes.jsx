@@ -1,9 +1,4 @@
-import {
-  Navigate,
-  Route,
-  Routes,
-} from 'react-router-dom'
-
+import { Navigate, Route, Routes} from 'react-router-dom'
 import Header from '../components/Header'
 import DestinationPage from '../components/DestinationPage'
 import ChatPage from '../components/chatting/Chatpage'
@@ -16,10 +11,7 @@ import ProfilePage from '../features/profile'
 import { useDestinations } from '../hooks/useDestinations'
 import { useFavorites } from '../hooks/useFavorites'
 
-export default function UserRoutes({
-  user,
-  onLogout,
-}) {
+export default function UserRoutes({ user, onLogout }) {
   const {
     destinations,
     loading: destinationsLoading,
@@ -156,11 +148,26 @@ export default function UserRoutes({
               user={user}
               onLogout={onLogout}
             />
-
             <ChatPage />
           </>
         }
       />
+
+      <Route path="/chat/:groupId" element={<>
+            <Header
+              user={user}
+              onLogout={onLogout}
+            />
+            <ChatPage />
+          </>} 
+      />
+
+      <Route path="/chat/:groupId/days" element={
+        <>
+          <Header user={user} onLogout={onLogout} />
+          <ChatPage />
+        </>
+      } />
 
       <Route
         path="*"

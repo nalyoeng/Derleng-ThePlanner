@@ -32,7 +32,7 @@ const handleSubmit = async (e) => {
 
   try {
     await onUpdateHeader({ 
-      name: name, // Matches DB column
+      name: name, 
       dates: formattedDates, 
       estimate_cost: estimateCost ? parseFloat(estimateCost) : 0.00 // Matches DB column
     });

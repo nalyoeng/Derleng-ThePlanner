@@ -9,7 +9,6 @@ export const getUserGroups = async (req, res) => {
   }
 
   try {
-    // 🌟 Using Supabase query builder to handle the table join securely
     const { data, error } = await db
       .from('groups')
       .select(`
@@ -23,7 +22,6 @@ export const getUserGroups = async (req, res) => {
 
     if (error) throw error;
 
-    // Flatten data slightly to match what your frontend expects
     const formattedRows = data.map(group => ({
       id: group.id,
       name: group.name,
@@ -63,5 +61,74 @@ export const inviteUser = async (req, res) => {
   } catch (error) {
     console.error("Error in inviteUser controller:", error);
     return res.status(500).json({ error: "Database insertion failed" });
+  }
+};
+
+export const getGroupById = async (req, res) => {
+  const { groupId } = req.params;
+
+  if (!groupId) {
+    return res.status(400).json({ error: "Group ID is required" });
+  }
+
+  try {
+    const { data, error } = await db
+      .from('groups')
+      .select(`
+        id,
+        name,
+        icon,
+        leader,
+        dates,
+        estimate_cost,
+        created_at,
+        profiles!groups_leader_fkey (full_name)
+      `)
+      .eq('id', groupId)
+      .single(); // expect exactly one group
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: "Group not found" });
+
+    const formattedGroup = {
+      ...data,
+      leader_name: data.profiles?.full_name || 'Unknown'
+    };
+    // Remove the nested profiles object from the final output
+    delete formattedGroup.profiles;
+
+    return res.status(200).json(formattedGroup);
+  } catch (error) {
+    console.error("Error in getGroupById controller:", error);
+    return res.status(500).json({ error: "Database query failure" });
+  }
+};
+
+export const updateGroupSchedule = async (req, res) => {
+  const { groupId } = req.params;
+  const { name, dates, estimate_cost } = req.body;
+
+  if (!groupId) {
+    return res.status(400).json({ error: "Group ID is required" });
+  }
+
+  try {
+    const { data, error } = await db
+      .from('groups')
+      .update({
+        name,
+        dates,
+        estimate_cost
+      })
+      .eq('id', groupId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return res.status(200).json(data);
+  } catch (error) {
+    console.error("Error updating group schedule:", error);
+    return res.status(500).json({ error: "Failed to update group details" });
   }
 };

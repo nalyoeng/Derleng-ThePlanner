@@ -56,7 +56,7 @@ export const searchUsers = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Search query is required' });
     }
 
-    // 🌟 FIXED: Removed the .ilike('name') filter that was causing the crash!
+    // Removed the .ilike('name') filter that was causing the crash!
     const { data: profiles, error } = await supabase
       .from('profiles')
       .select('id, username, full_name')

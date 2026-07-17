@@ -1,4 +1,3 @@
-// backend/src/controllers/friendController.js
 import supabase from '../config/supabase.js';
 
 // Offline fallback dataset
@@ -7,7 +6,7 @@ const MOCK_FRIENDS = [
   { id: 'f2', name: 'Borith Seyha', initials: 'BS', status: 'pending' }
 ];
 
-// 1. Get authenticated user's friend list
+// Get authenticated user's friend list
 export const getMyFriends = async (req, res) => {
   const userId = req.user.id; // Passed down seamlessly from protect middleware
   
@@ -20,12 +19,12 @@ export const getMyFriends = async (req, res) => {
     if (error) throw error;
     res.status(200).json(data);
   } catch (err) {
-    console.warn("⚠️ Supabase unreachable. Serving local offline friends list.");
+    console.warn("Supabase unreachable. Serving local offline friends list.");
     res.status(200).json(MOCK_FRIENDS);
   }
 };
 
-// 2. Send a friend connection request
+// Send a friend connection request
 export const sendFriendRequest = async (req, res) => {
   const { targetFriendEmail } = req.body;
   // In a live environment, you would look up the user by email and insert a relationship row

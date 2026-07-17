@@ -1,9 +1,10 @@
 import React from 'react';
 import { Users, Plus, Link2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function GroupList({ groups, activeGroup, onSelectGroup, onCreateGroupClick }) {
-  
-  // 🎨 Helper function to generate a consistent background color based on the group name
+  const navigate = useNavigate();
+ 
   const getAvatarStyle = (name) => {
     if (!name) return { backgroundColor: '#E5E7EB', color: '#374151' };
     
@@ -30,7 +31,6 @@ export default function GroupList({ groups, activeGroup, onSelectGroup, onCreate
     };
   };
 
-  // 🔤 Helper function to get the first letter cleanly
   const getFirstLetter = (name) => {
     return name ? name.trim().charAt(0).toUpperCase() : '?';
   };
@@ -71,14 +71,17 @@ export default function GroupList({ groups, activeGroup, onSelectGroup, onCreate
             const isSelected = activeGroup?.id === group.id;
             const avatarStyle = getAvatarStyle(group.name);
             
-            // 🌟 UPDATED: Reads member_count falling back gracefully to 1 (the group leader)
             const headcount = group.member_count ?? 1;
 
             return (
               <button
                 key={group.id}
                 type="button"
-                onClick={() => onSelectGroup(group)}
+                onClick={() => {
+                  onSelectGroup(group);         
+                  navigate(`/chat/${group.id}`);
+                }}
+                
                 className={`w-full p-3.5 rounded-xl border transition-all flex items-center justify-between text-left group cursor-pointer ${
                   isSelected
                     ? 'bg-[#F0FDF4] border-[#34D399] shadow-sm'

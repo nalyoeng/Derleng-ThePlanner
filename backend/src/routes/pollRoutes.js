@@ -1,6 +1,4 @@
-// backend/src/routes/pollRoutes.js
 import express from 'express';
-// 🌟 Don't forget the '.js' extension on local file imports!
 import * as pollController from '../controllers/pollController.js'; 
 
 const router = express.Router();

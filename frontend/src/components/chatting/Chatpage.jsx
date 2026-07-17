@@ -12,19 +12,22 @@ import AddActivityModal from './scheduleArea/AddActivityModal';
 import CreateGroupModal from './sidebar/CreateGroupModal';
 import CreatePollModal from './chatArea/CreatePollModal';
 import { supabase } from '../../supabaseClient.js';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 export default function Chatpage() {
+  const { groupId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [activeGroup, setActiveGroup] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [messageInput, setMessageInput] = useState('');
   const [isPollModalOpen, setIsPollModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState('chat');
-  const [activeDay, setActiveDay] = useState(null); 
-  
+  const [activeDay, setActiveDay] = useState(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [isDayModalOpen, setIsDayModalOpen] = useState(false);
-
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [scheduleDays, setScheduleDays] = useState([]);
   const [activities, setActivities] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -47,6 +50,20 @@ export default function Chatpage() {
     if (!name || typeof name !== 'string') return '??';
     return name.trim().split(' ').map(n => n?.[0]).join('').toUpperCase().slice(0, 2) || '??';
   };
+
+  useEffect(() => {
+    if (groupId && groups.length > 0) {
+      const foundGroup = groups.find(g => String(g.id) === String(groupId));
+      if (foundGroup) {
+        setActiveGroup(foundGroup);
+      }
+    }
+  }, [groupId, groups]);
+
+  // Sync ViewMode based on Path
+  useEffect(() => {
+    setViewMode(location.pathname.endsWith('/days') ? 'schedule' : 'chat');
+  }, [location.pathname]);
 
   // --- 1. FETCH PROFILE ON MOUNT ---
   useEffect(() => {
@@ -78,6 +95,8 @@ export default function Chatpage() {
             icon,
             leader,
             created_at,
+            dates,            
+            estimate_cost,
             group_members(count)
           )
         `)
@@ -92,6 +111,8 @@ export default function Chatpage() {
             icon: m.groups.icon,
             created_at: m.groups.created_at,
             role: m.role,
+            dates: m.groups.dates,         
+            estimate_cost: m.groups.estimate_cost,
             member_count: m.groups.group_members?.[0]?.count || 1 
           }));
         
@@ -495,32 +516,34 @@ export default function Chatpage() {
     }
   };
 
-  const handleUpdateTripHeader = async (updatedFields) => {
-    if (!activeGroup?.id) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('groups')
-        .update({ 
-          name: updatedFields.name, 
-          dates: updatedFields.dates, 
-          estimate_cost: updatedFields.estimate_cost 
-        })
-        .eq('id', activeGroup.id)
-        .select()
-        .single();
+  // Add this in Chatpage.jsx
+const handleUpdateTripHeader = async (updatedFields) => {
+  if (!activeGroup?.id) return;
 
-      if (error) throw error;
-      
-      // 🌟 THIS IS VITAL: Update the active view AND the sidebar list instantly
-      setActiveGroup(data);
-      setGroups(prevGroups => prevGroups.map(g => g.id === data.id ? { ...g, ...data } : g));
-      
-    } catch (err) {
-      console.error("Group Update failed! Error details:", err.message);
-      alert("Failed to save. Check your browser console for details.");
-    }
-  };
+  try {
+    const { data, error } = await supabase
+      .from('groups') // Ensure this is your correct table name
+      .update({
+        name: updatedFields.name,
+        dates: updatedFields.dates, // Ensure 'dates' column exists
+        estimate_cost: updatedFields.estimate_cost
+      })
+      .eq('id', activeGroup.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Update the local state so the UI reflects the change immediately
+    setGroups(prev => prev.map(g => g.id === activeGroup.id ? { ...g, ...data } : g));
+    setActiveGroup(data);
+    
+    console.log("Trip updated successfully!");
+  } catch (err) {
+    console.error("Update failed:", err.message);
+    alert("Could not update trip: " + err.message); // Visual feedback
+  }
+};
 
   const handleCreateGroupSubmit = async (newGroup) => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -583,7 +606,10 @@ export default function Chatpage() {
         <GroupList 
           groups={filteredGroups} 
           activeGroup={activeGroup} 
-          onSelectGroup={(group) => { setActiveGroup(group); setViewMode('chat'); }} 
+          onSelectGroup={(group) => { 
+            setActiveGroup(group); 
+            navigate(`/chat/${group.id}`); 
+          }} 
           onCreateGroupClick={() => setIsCreateGroupOpen(true)} 
         />
       </div>
@@ -622,9 +648,12 @@ export default function Chatpage() {
               <ScheduleHeader 
                 activeGroup={activeGroup}
                 allProfiles={allProfiles}
-                groupMembersTable={groupMembersTable} /* 🌟 ADD THIS LINE */
+                groupMembersTable={groupMembersTable} 
                 onBackToChat={handleBackToChat}
                 onUpdateGroupHeader={handleUpdateTripHeader} 
+                onOpenEditModal={() => setIsEditModalOpen(true)}
+                isEditModalOpen={isEditModalOpen}
+                onCloseEditModal={() => setIsEditModalOpen(false)}
               />
               <DaySelector 
                 days={scheduleDays} 
@@ -707,6 +736,7 @@ export default function Chatpage() {
           setIsPollModalOpen(false);
         }}
       />
+
     </div>
   );
 }

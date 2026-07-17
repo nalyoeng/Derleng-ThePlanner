@@ -1,26 +1,26 @@
 import React from 'react';
 import { ArrowLeft, Edit3 } from 'lucide-react';
 import EditHeaderModal from './EditHeaderModal'; 
+import { useNavigate } from 'react-router-dom';
 
 export default function ScheduleHeader({ 
   activeGroup, 
-  allProfiles = [],       // 🌟 FIX 1: Default to empty array in props
-  groupMembersTable = [], // 🌟 FIX 1: Default to empty array in props
+  allProfiles = [],       
+  groupMembersTable = [], 
   onUpdateGroupHeader, 
-  onBackToChat 
+  onBackToChat, 
+  onOpenEditModal, 
+  isEditModalOpen, 
+  onCloseEditModal
 }) {
-  const [isHeaderModalOpen, setIsHeaderModalOpen] = React.useState(false);
 
-  // 1. Resolve Leader Name (Safely handles missing profiles)
-  const leaderProfile = allProfiles.find(p => p.id === activeGroup?.leader);
-  const leaderName = leaderProfile?.full_name || 'Unknown Leader';   
+  const navigate = useNavigate();
 
-  // 2. Resolve Travelers (🌟 FIX 2: Bulletproof filtering prevents crashes)
+  // Resolve Travelers 
   const travelers = allProfiles.filter(profile => 
     groupMembersTable.some(member => member.user_id === profile.id && member.group_id === activeGroup?.id)
   );
 
-  // 3. Helper: Generate initials safely (🌟 FIX 3: Checks if name is actually a string)
   const getInitials = (name) => {
     if (!name || typeof name !== 'string') return '??';
     return name
@@ -32,14 +32,12 @@ export default function ScheduleHeader({
       .substring(0, 2);
   };
 
-  // 4. Helper: Format currency
   const formatCostDisplay = (rawCost) => {
     if (rawCost === null || rawCost === undefined) return '–';
     const costString = rawCost.toString();
     return costString.includes('$') ? costString : `~$${costString}`;
   };
 
-  // 5. Helper: Safe dates
   const displayDates = (!activeGroup?.dates || activeGroup.dates === 'NULL') 
     ? 'Not set' 
     : activeGroup.dates;
@@ -50,16 +48,17 @@ export default function ScheduleHeader({
       <div className="flex items-center justify-between mb-6">
         <button
           type="button"
-          onClick={onBackToChat}
+          onClick={() => navigate(`/chat/${groupId}`)}
           className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold backdrop-blur-sm transition-all cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
+          
           <span>Back to Chat</span>
         </button>
 
         <button
           type="button"
-          onClick={() => setIsHeaderModalOpen(true)}
+          onClick={onOpenEditModal}
           className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-[#34D399] hover:text-white bg-[#0F5132]/40 hover:bg-[#0F5132]/80 border border-transparent hover:border-emerald-500/20 px-3 py-1.5 rounded-lg uppercase cursor-pointer transition-all"
         >
           <Edit3 className="w-3 h-3" />
@@ -78,10 +77,10 @@ export default function ScheduleHeader({
           <span className="font-semibold text-white">{displayDates}</span>
         </div>
 
-        <div>
+        {/* <div>
           <span className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Leader</span>
           <span className="font-semibold text-white">{leaderName}</span>
-        </div>
+        </div> */}
 
         <div>
           <span className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Est. cost / person</span>
@@ -108,8 +107,8 @@ export default function ScheduleHeader({
 
       {/* Make sure EditHeaderModal.jsx actually exists in this folder! */}
       <EditHeaderModal 
-        isOpen={isHeaderModalOpen}
-        onClose={() => setIsHeaderModalOpen(false)}
+        isOpen={isEditModalOpen} 
+        onClose={onCloseEditModal}
         currentData={{
           name: activeGroup?.name,
           dates: activeGroup?.dates,
