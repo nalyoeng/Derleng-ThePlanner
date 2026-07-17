@@ -16,6 +16,7 @@ import authRoutes from './routes/authRoutes.js';
 import destinationRoutes from './routes/destinationRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import profileRoutes from './routes/profileRoutes.js'
+import favoriteRoutes from './routes/favoriteRoutes.js';
 const app  = express();
 const PORT = process.env.PORT || 5000;
 
@@ -72,7 +73,7 @@ app.use('/api/groups', groupRoutes);
 app.use('/api/destinations', destinationRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/profile', profileRoutes);
-
+app.use('/api/favorites', favoriteRoutes);
 // Global error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);

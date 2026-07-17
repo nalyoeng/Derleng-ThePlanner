@@ -1,63 +1,79 @@
 import express from 'express'
 
 import {
-  createReview,
-  deleteReview,
-  getReviewById,
   listReviewsForDestination,
+  getReviewById,
+  createReview,
   updateReview,
+  deleteReview,
   reportReview,
 } from '../controllers/reviewController.js'
 
-import { protect } from '../middleware/authMiddleware.js'
+import {
+  protect,
+} from '../middleware/authMiddleware.js'
 
 import {
-  ensureReviewPostingAllowed,
-  loadReviewAndAuthorize,
-  validateReviewCreate,
-  validateReviewUpdate,
-} from '../middleware/reviewMiddleware.js'
+  loadRestrictions,
+  blockFullBan,
+  blockCommentBan,
+  blockRestrictedWrite,
+} from '../middleware/restrictionMiddleware.js'
 
 const router = express.Router()
 
-// Public routes
+// Public: load reviews for one destination
 router.get(
   '/destination/:destinationId',
-  listReviewsForDestination,
+  listReviewsForDestination
 )
 
-router.get('/:id', getReviewById)
+// Public: load one review
+router.get(
+  '/:id',
+  getReviewById
+)
 
-// User creates a review
+// Protected: create a review
 router.post(
   '/destination/:destinationId',
   protect,
-  ensureReviewPostingAllowed,
-  validateReviewCreate,
-  createReview,
+  loadRestrictions,
+  blockFullBan,
+  blockRestrictedWrite,
+  blockCommentBan,
+  createReview
 )
-// user reports a review
-router.post(
-  '/:id/report',
-  protect,
-  reportReview,
-)
-// User updates their own review
+
+// Protected: update own review
 router.patch(
   '/:id',
   protect,
-  ensureReviewPostingAllowed,
-  loadReviewAndAuthorize,
-  validateReviewUpdate,
-  updateReview,
+  loadRestrictions,
+  blockFullBan,
+  blockRestrictedWrite,
+  blockCommentBan,
+  updateReview
 )
 
-// User deletes their own review
+// Protected: delete own review
 router.delete(
   '/:id',
   protect,
-  loadReviewAndAuthorize,
-  deleteReview,
+  loadRestrictions,
+  blockFullBan,
+  blockRestrictedWrite,
+  deleteReview
+)
+
+// Protected: report another review
+router.post(
+  '/:id/report',
+  protect,
+  loadRestrictions,
+  blockFullBan,
+  blockRestrictedWrite,
+  reportReview
 )
 
 export default router

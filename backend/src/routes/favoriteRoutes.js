@@ -1,9 +1,10 @@
 import express from 'express'
 
 import {
-  getMyProfile,
-  updateMyProfile,
-} from '../controllers/profileController.js'
+  addFavorite,
+  getMyFavorites,
+  removeFavorite,
+} from '../controllers/favoriteController.js'
 
 import {
   protect,
@@ -17,24 +18,33 @@ import {
 
 const router = express.Router()
 
-// Full-banned user cannot access profile
+// View own favorites
 router.get(
-  '/me',
+  '/',
   protect,
   loadRestrictions,
   blockFullBan,
-  getMyProfile
+  getMyFavorites
 )
 
-// Restricted account can view profile,
-// but cannot update it
-router.patch(
-  '/me',
+// Add favorite
+router.post(
+  '/:destinationId',
   protect,
   loadRestrictions,
   blockFullBan,
   blockRestrictedWrite,
-  updateMyProfile
+  addFavorite
+)
+
+// Remove favorite
+router.delete(
+  '/:destinationId',
+  protect,
+  loadRestrictions,
+  blockFullBan,
+  blockRestrictedWrite,
+  removeFavorite
 )
 
 export default router
