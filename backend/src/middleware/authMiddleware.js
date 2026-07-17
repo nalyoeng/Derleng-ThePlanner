@@ -1,34 +1,92 @@
-// src/middleware/authMiddleware.js
-import 'dotenv/config';
-import { createClient } from '@supabase/supabase-js';
+import supabase from '../config/supabase.js'
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-
+/**
+ * Verifies a Supabase access token and loads the matching application profile.
+ * Adds req.user, req.profile, and req.accessToken for protected controllers.
+ */
 export const protect = async (req, res, next) => {
   try {
-    // 1. Check if the Authorization header exists and starts with 'Bearer '
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ success: false, message: 'Not authorized, token missing' });
+    const authHeader = req.headers.authorization
+
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication token is missing.',
+      })
     }
 
-    // 2. Extract the actual JWT token string
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.slice(7).trim()
 
-    // 3. Ask Supabase to verify this token
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-
-    if (error || !user) {
-      return res.status(401).json({ success: false, message: 'Not authorized, invalid token' });
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication token is missing.',
+      })
     }
 
-    // 4. Attach the verified user object to the request so controllers can use it
-    req.user = user;
-    
-    // Move on to the next function (the controller)
-    next();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser(token)
+
+    if (userError || !user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired authentication token.',
+      })
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select(`
+        id,
+        username,
+        full_name,
+        email,
+        initials,
+        phone,
+        bio,
+        avatar_url,
+        role,
+        ban_type,
+        created_at,
+        updated_at
+      `)
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profileError) {
+      console.error('Profile loading error:', profileError)
+      return res.status(500).json({
+        success: false,
+        message: 'The profile could not be loaded.',
+      })
+    }
+
+    if (!profile) {
+      return res.status(403).json({
+        success: false,
+        message: 'A profile was not found for this account.',
+      })
+    }
+
+    if (profile.ban_type === 'full_ban') {
+      return res.status(403).json({
+        success: false,
+        message: 'This account is suspended.',
+      })
+    }
+
+    req.user = user
+    req.profile = profile
+    req.accessToken = token
+
+    return next()
   } catch (error) {
-    console.error('Auth middleware error:', error.message);
-    return res.status(401).json({ success: false, message: 'Authentication process failed' });
+    console.error('Authentication middleware error:', error)
+    return res.status(500).json({
+      success: false,
+      message: 'The server could not authenticate the account.',
+    })
   }
-};
+}

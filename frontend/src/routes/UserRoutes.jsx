@@ -10,6 +10,7 @@ import ProfilePage from '../features/profile'
 
 import { useDestinations } from '../hooks/useDestinations'
 import { useFavorites } from '../hooks/useFavorites'
+import TestBackendAuth from '../features/auth/TestBackendAuth'
 
 export default function UserRoutes({ user, onLogout }) {
   const {
@@ -71,6 +72,10 @@ export default function UserRoutes({ user, onLogout }) {
             favoritesError={favoritesError}
           />
         }
+      />
+      <Route
+        path="/test-auth"
+        element={<TestBackendAuth />}
       />
 
       <Route

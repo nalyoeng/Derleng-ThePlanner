@@ -1,29 +1,78 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import Header from '../../components/Header'
 import FirstCard from '../../components/FirstCard'
 import DestinationCard from '../../components/DestinationCard'
+import { destinationApi } from '../../lib/destinationApi'
 
 export default function Home({
   user,
   onLogout,
-  destinations = [],
   favorites = new Set(),
   onToggleFav = () => {},
   favoritesLoading = false,
   favoritesError = '',
 }) {
+  const [destinations, setDestinations] = useState([])
+  const [destinationsLoading, setDestinationsLoading] =
+    useState(true)
+  const [destinationsError, setDestinationsError] =
+    useState('')
+
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategories, setSelectedCategories] =
     useState([])
 
+  // Load destinations from Express backend
+  useEffect(() => {
+    const loadDestinations = async () => {
+      try {
+        setDestinationsLoading(true)
+        setDestinationsError('')
+
+        const response = await destinationApi.getAll({
+          page: 1,
+          limit: 100,
+          status: 'Active',
+        })
+
+        setDestinations(response.data ?? [])
+      } catch (error) {
+        console.error('Load destinations error:', error)
+
+        setDestinationsError(
+          error.response?.data?.message ||
+            'Could not load destinations.'
+        )
+      } finally {
+        setDestinationsLoading(false)
+      }
+    }
+
+    loadDestinations()
+  }, [])
+
+  // Get every unique category from categories[]
   const categories = useMemo(() => {
+    const allCategories = destinations.flatMap(
+      (destination) => {
+        if (Array.isArray(destination.categories)) {
+          return destination.categories
+        }
+
+        // Support old frontend data temporarily
+        if (destination.category) {
+          return [destination.category]
+        }
+
+        return []
+      }
+    )
+
     return [
       ...new Set(
-        destinations
-          .map((destination) =>
-            destination.category?.trim()
-          )
+        allCategories
+          .map((category) => category?.trim())
           .filter(Boolean)
       ),
     ].sort()
@@ -33,12 +82,20 @@ export default function Home({
     const search = searchTerm.trim().toLowerCase()
 
     return destinations.filter((destination) => {
+      const destinationCategories = Array.isArray(
+        destination.categories
+      )
+        ? destination.categories
+        : destination.category
+          ? [destination.category]
+          : []
+
       const searchText = [
         destination.name,
         destination.location,
-        destination.category,
         destination.description,
         destination.highlight,
+        ...destinationCategories,
         ...(destination.tags || []),
       ]
         .filter(Boolean)
@@ -50,8 +107,8 @@ export default function Home({
 
       const matchesCategory =
         selectedCategories.length === 0 ||
-        selectedCategories.includes(
-          destination.category
+        selectedCategories.some((category) =>
+          destinationCategories.includes(category)
         )
 
       return matchesSearch && matchesCategory
@@ -150,6 +207,18 @@ export default function Home({
       </section>
 
       <section className="grid grid-cols-1 gap-5 px-6 py-4 sm:grid-cols-2 lg:grid-cols-3">
+        {destinationsLoading && (
+          <p className="text-sm text-gray-500 sm:col-span-2 lg:col-span-3">
+            Loading destinations...
+          </p>
+        )}
+
+        {destinationsError && (
+          <div className="rounded-lg bg-red-50 p-3 text-red-600 sm:col-span-2 lg:col-span-3">
+            {destinationsError}
+          </div>
+        )}
+
         {favoritesError && (
           <div className="rounded-lg bg-red-50 p-3 text-red-600 sm:col-span-2 lg:col-span-3">
             Could not update favorites: {favoritesError}
@@ -162,7 +231,9 @@ export default function Home({
           </p>
         )}
 
-        {filteredDestinations.length === 0 ? (
+        {!destinationsLoading &&
+        !destinationsError &&
+        filteredDestinations.length === 0 ? (
           <div className="py-16 text-center sm:col-span-2 lg:col-span-3">
             <h2 className="text-xl font-semibold">
               No destinations found

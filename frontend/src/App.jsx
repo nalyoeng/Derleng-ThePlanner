@@ -3,6 +3,11 @@ import UserRoutes from './routes/UserRoutes'
 import AdminRoutes from './routes/AdminRoutes'
 import { useAuth } from './hooks/useAuth'
 import {
+  Navigate,
+  Route,
+  Routes,
+} from 'react-router-dom'
+import {
   isAdminRole,
   normalizeRole,
 } from './constants/roles'
@@ -43,8 +48,27 @@ export default function App() {
   }
 
   if (!user) {
-    return <AuthPage />
-  }
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={<AuthPage />}
+      />
+
+      <Route
+        path="/register"
+        element={<AuthPage />}
+      />
+
+      <Route
+        path="*"
+        element={
+          <Navigate to="/login" replace />
+        }
+      />
+    </Routes>
+  )
+}
 
   if (isAdminRole(currentRole)) {
     return (

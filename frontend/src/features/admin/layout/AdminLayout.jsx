@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom'; // 🌟 Added useLocation and Navigate
 import {
   LayoutDashboard, MapPin, UserPlus, Database,
   RefreshCw, Flag, Bell, ChevronDown, LogOut
 } from 'lucide-react';
 import logoImg from '../../../assets/logo-no-bg.jpg';
+import useAuthStore from '../../../context/authStore'; // 🌟 Added auth store import
 
 // --- Role-based sidebar nav config ---
 const allNavItems = [
@@ -52,31 +53,44 @@ const allNavItems = [
   },
 ];
 
-// Dummy user — replace with real auth context later
-const currentUser = {
-  name: 'Sophea Vann',
-  initials: 'SV',
-  role: 'super_admin', // change to 'place_manager' or 'moderator' to test
-};
-
 const roleLabel = {
   super_admin: 'Super Admin',
   place_manager: 'Place Manager',
   moderator: 'Moderator',
 };
-// add prop
-export default function AdminLayout({role,onLogout,}) {
+
+export default function AdminLayout({ role, onLogout }) {
   const navigate = useNavigate();
+  const location = useLocation(); 
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // 🌟 Fetch the real user session from Zustand
+  const { user } = useAuthStore();
+
+  // 🌟 Create a dynamic user object instead of the hardcoded dummy
+  const currentUser = {
+    name: user?.user_metadata?.full_name || user?.email || 'Admin User',
+    initials: (user?.user_metadata?.full_name || 'A U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
+    role: role, // This now uses the real role prop passed from App.jsx!
+  };
 
   const visibleNav = allNavItems.filter((item) =>
     item.roles.includes(currentUser.role)
   );
-  //add
-  const handleLogout = async () => {
-  await onLogout?.()
- }
 
+  // 🌟 The Route Guard: Kick them out if they manually type a restricted URL
+  const currentNavItem = allNavItems.find(item => location.pathname.startsWith(item.to));
+  if (currentNavItem && !currentNavItem.roles.includes(currentUser.role)) {
+    // Redirect them to the first page they actually have access to
+    const defaultRoute = visibleNav[0]?.to || '/';
+    return <Navigate to={defaultRoute} replace />;
+  }
+
+  const handleLogout = async () => {
+    await onLogout?.()
+  }
+
+    // ... KEEP YOUR EXISTING RETURN (JSX) EXACTLY THE SAME FROM HERE DOWN ...
   return (
     <div className="flex h-screen bg-[#faf8f3] font-sans overflow-hidden">
 

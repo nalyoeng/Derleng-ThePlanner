@@ -19,6 +19,10 @@ import {
   restrictUser,
   liftRestriction,
   getAllRestrictions,
+  // Backup & Recover
+  createBackup,
+  getBackups,
+  restoreBackup,
 } from '../controllers/adminController.js';
 
 import {
@@ -35,54 +39,32 @@ const router = express.Router();
 router.use(isAuthenticated);
 
 // ── Dashboard ────────────────────────────────────────────────
-// GET /api/admin/users
 router.get('/users', isSuperAdmin, getAllUsers);
-
-
-
 
 // ── Create Admin & Revoke ────────────────────────────────────
-// POST /api/admin/create
-router.get('/users', isSuperAdmin, getAllUsers);
-
-
-// PATCH /api/admin/revoke/:id
+router.post('/create', isSuperAdmin, createAdmin);
 router.patch('/revoke/:id', isSuperAdmin, revokeAdmin);
-
-// PATCH /api/admin/edit-role/:id
 router.patch('/edit-role/:id', isSuperAdmin, editAdminRole);
 
 // ── Destinations ─────────────────────────────────────────────
-// GET /api/admin/destinations
 router.get('/destinations', isAdmin, getAllDestinations);
-
-// POST /api/admin/destinations
 router.post('/destinations', isPlaceManager, createDestination);
-
-// PUT /api/admin/destinations/:id
 router.put('/destinations/:id', isPlaceManager, updateDestination);
-
-// DELETE /api/admin/destinations/:id
 router.delete('/destinations/:id', isSuperAdmin, deleteDestination);
 
 // ── Reports ──────────────────────────────────────────────────
-// GET /api/admin/reports
 router.get('/reports', isModerator, getAllReports);
-
-// PATCH /api/admin/reports/:id/dismiss
 router.patch('/reports/:id/dismiss', isModerator, dismissReport);
 
 // ── Ban & Restrictions ───────────────────────────────────────
-// PATCH /api/admin/ban/:id
 router.patch('/ban/:id', isModerator, banUser);
-
-// POST /api/admin/restrict/:id
 router.post('/restrict/:id', isModerator, restrictUser);
-
-// PATCH /api/admin/lift/:id
 router.patch('/lift/:id', isModerator, liftRestriction);
-
-// GET /api/admin/restrictions
 router.get('/restrictions', isModerator, getAllRestrictions);
+
+// ── Backup & Recover ─────────────────────────────────────────
+router.post('/backup', isSuperAdmin, createBackup);
+router.get('/backups', isSuperAdmin, getBackups);
+router.post('/recover', isSuperAdmin, restoreBackup);
 
 export default router;
