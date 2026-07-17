@@ -234,13 +234,13 @@ export default function Header({
 
         {/* Chat Page Link */}
         <Link 
-          to="/chat" // 🌟 Points to your chat route path
+          to="/chat"
           className="w-11 h-11 rounded-full bg-white border border-[#E1DDD4] flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all relative"
         >
           <MessageSquare className="w-5 h-5 stroke-[2]" />
-          <span className="absolute -top-1 -right-1 bg-[#42C196] border-2 border-white text-white text-[10px] font-bold h-5 w-5 flex items-center justify-center rounded-full shadow-sm animate-pulse">
+          {/* <span className="absolute -top-1 -right-1 bg-[#42C196] border-2 border-white text-white text-[10px] font-bold h-5 w-5 flex items-center justify-center rounded-full shadow-sm animate-pulse">
             2
-          </span>
+          </span> */}
         </Link>
 
         {/* Notifications Page Link */}

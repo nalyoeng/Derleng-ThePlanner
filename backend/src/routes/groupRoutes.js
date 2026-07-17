@@ -1,6 +1,6 @@
 // routes/groupRoutes.js
 import express from 'express';
-import { getUserGroups, inviteUser } from '../controllers/groupController.js';
+import { getUserGroups, inviteUser, getGroupById, updateGroupSchedule} from '../controllers/groupController.js';
 
 const router = express.Router();
 

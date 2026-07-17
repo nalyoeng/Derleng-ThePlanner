@@ -43,7 +43,7 @@ export default function ActivityCard({ activity, onDeleteActivity }) {
         
         {/* Action Buttons Container */}
         <div className="flex items-center gap-1.5">
-          {/* 🌟 STATIC DELETE BUTTON AT THE BOTTOM */}
+          {/* STATIC DELETE BUTTON AT THE BOTTOM */}
           <button
             type="button"
             onClick={() => {

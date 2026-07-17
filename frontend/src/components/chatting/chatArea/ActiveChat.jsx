@@ -132,7 +132,7 @@ export default function ActiveChat({
                   }`}>
                     <div className="flex items-center gap-1.5 text-[10px] text-emerald-700 font-bold tracking-wider uppercase mb-1.5">
                       <BarChart3 className="w-3.5 h-3.5" />
-                      <span>Workspace Group Poll</span>
+                      <span>Group Poll</span>
                     </div>
                     
                     <h4 className="text-xs font-bold text-gray-800 mb-3 leading-snug">{msg.text}</h4>
