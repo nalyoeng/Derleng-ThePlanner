@@ -1,0 +1,505 @@
+{
+  "info": {
+    "name": "Der Leng - Admin API",
+    "description": "Admin API endpoints for Der Leng trip planner — covers dashboard, destinations, create admin, reports, restrictions, ban, backup and recovery.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",   "value": "http://localhost:5000" },
+    { "key": "supabaseUrl", "value": "https://pmfszyoztmmszzhtpqsp.supabase.co" },
+    { "key": "token",     "value": "" },
+    { "key": "userId",    "value": "" },
+    { "key": "destId",    "value": "" },
+    { "key": "reportId",  "value": "" },
+    { "key": "backupFile","value": "" }
+  ],
+  "item": [
+    {
+      "name": "0 - Get Token (Login)",
+      "item": [
+        {
+          "name": "Login as Super Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body?.access_token) pm.collectionVariables.set('token', body.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey",       "value": "your-anon-key-here" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"sophea@mittours.kh\",\n  \"password\": \"Sophea168\"\n}"
+            },
+            "url": {
+              "raw": "{{supabaseUrl}}/auth/v1/token?grant_type=password",
+              "host": ["{{supabaseUrl}}"],
+              "path": ["auth", "v1", "token"],
+              "query": [{ "key": "grant_type", "value": "password" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "1 - Dashboard",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 - Create Admin & Revoke",
+      "item": [
+        {
+          "name": "Create Admin (Place Manager)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Test Admin\",\n  \"email\": \"testadmin@gmail.com\",\n  \"password\": \"Test@1234\",\n  \"role\": \"place_manager\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "create"]
+            }
+          }
+        },
+        {
+          "name": "Create Admin (Moderator)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Test Moderator\",\n  \"email\": \"testmod@gmail.com\",\n  \"password\": \"Test@1234\",\n  \"role\": \"moderator\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "create"]
+            }
+          }
+        },
+        {
+          "name": "Edit Admin Role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newRole\": \"moderator\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/edit-role/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "edit-role", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Revoke Admin",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/revoke/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "revoke", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Admin - Missing Fields (Should Fail 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"No Email Admin\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "create"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 - Destinations",
+      "item": [
+        {
+          "name": "Get All Destinations",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/destinations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "destinations"]
+            }
+          }
+        },
+        {
+          "name": "Create Destination",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body?.destination?.id) pm.collectionVariables.set('destId', body.destination.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Kep Beach\",\n  \"location\": \"Kep Province\",\n  \"categories\": [\"Beach\", \"Nature\"],\n  \"status\": \"Active\",\n  \"cost\": 15,\n  \"image_url\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/destinations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "destinations"]
+            }
+          }
+        },
+        {
+          "name": "Update Destination",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Kep Beach Updated\",\n  \"location\": \"Kep Province\",\n  \"categories\": [\"Beach\", \"Nature\", \"Food & Drink\"],\n  \"status\": \"Active\",\n  \"cost\": 20,\n  \"image_url\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/destinations/{{destId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "destinations", "{{destId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Destination",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/destinations/{{destId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "destinations", "{{destId}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Destination - Missing Fields (Should Fail 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Incomplete Place\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/destinations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "destinations"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4 - Reports",
+      "item": [
+        {
+          "name": "Get All Reports",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reports",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "reports"]
+            }
+          }
+        },
+        {
+          "name": "Dismiss Report",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reports/{{reportId}}/dismiss",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "reports", "{{reportId}}", "dismiss"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5 - Ban & Restrictions",
+      "item": [
+        {
+          "name": "Get All Restrictions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/restrictions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "restrictions"]
+            }
+          }
+        },
+        {
+          "name": "Full Ban User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ban_type\": \"full_ban\",\n  \"reason\": \"Posting illegal content repeatedly\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/ban/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "ban", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Comment Ban User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ban_type\": \"comment_ban\",\n  \"reason\": \"Hate speech in comments\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/ban/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "ban", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Restrict User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"duration\": \"1 day\",\n  \"reason\": \"Spam comments\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/restrict/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "restrict", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Lift Restriction",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/lift/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "lift", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Ban User - Invalid Type (Should Fail 400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ban_type\": \"invalid_type\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/ban/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "ban", "{{userId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6 - Backup & Recovery",
+      "item": [
+        {
+          "name": "Create Backup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body?.filename) pm.collectionVariables.set('backupFile', body.filename);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/backup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "backup"]
+            }
+          }
+        },
+        {
+          "name": "Get All Backups",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/backups",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "backups"]
+            }
+          }
+        },
+        {
+          "name": "Restore Backup",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"{{backupFile}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/recover",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "recover"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7 - Security Tests",
+      "item": [
+        {
+          "name": "No Token (Should Fail 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users"]
+            }
+          }
+        },
+        {
+          "name": "Wrong Token (Should Fail 401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer fake-token-123" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
