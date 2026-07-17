@@ -1,5 +1,5 @@
 import express from 'express';
-import * as tripController from '../controllers/tripController.js';
+import {getTripDaysByGroup, getActivitiesByDay, createActivity, deleteActivity} from '../controllers/tripController.js';
 
 const router = express.Router();
 

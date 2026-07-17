@@ -39,6 +39,23 @@ export const createActivity = async (req, res) => {
   }
 };
 
+export const getActivitiesByDay = async (req, res) => {
+  const { dayId } = req.params;
+  try {
+    const { data, error } = await supabase
+      .from('activities')
+      .select('*')
+      .eq('day_id', dayId)
+      .order('time', { ascending: true }); // Orders by time for better UI display
+
+    if (error) throw error;
+    res.status(200).json(data);
+  } catch (error) {
+    console.error("Error fetching activities:", error);
+    res.status(500).json({ error: "Failed to fetch activities" });
+  }
+};
+
 export const deleteActivity = async (req, res) => {
   const { activityId } = req.params;
   try {
